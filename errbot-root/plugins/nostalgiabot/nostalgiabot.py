@@ -1,5 +1,8 @@
-from errbot import BotPlugin, botcmd, re_botcmd, ValidationException
+import random
+import re
 
+from errbot import BotPlugin, botcmd, re_botcmd, ValidationException
+from typing import List
 
 class NostalgiaBot(BotPlugin):
     """
@@ -19,7 +22,7 @@ class NostalgiaBot(BotPlugin):
         self.pop(args[0], None)
 
     @botcmd(split_args_with=None)
-    def remember(self, msg, args):
+    def remember(self, msg, args: List[str]):
         """
         Insert a quote into NostalgiaBot's memory for a person.
 
@@ -54,28 +57,45 @@ class NostalgiaBot(BotPlugin):
                 quotes.append(quote)
 
     @botcmd(split_args_with=None)
-    def remind(self, msg, args):
+    def remind(self, msg, args: List[str]):
         """
-        Return a random quote from person in NostalgiaBot's memory.
+        Return a random quote from person or persons in NostalgiaBot's memory.
 
         Regex Syntax:
-        [Rr]mind me of @([\S]+)
+        [Rr]emind me of @(\w+)
 
         Example:
         Remind me of @hanif
+        Remind me of @ellen @sri
         """
-        print(self[args[-1]])
-        pass
+
+        user_prefix_expression = re.compile("@.*")
+
+        # Need to list() the filter because we iterate through it multiple times
+        # to check and then to output.
+        users = list(filter(user_prefix_expression.match, args))
+
+        # TODO: Can we check user validity then output more smoothly?
+        for user in users:
+            if user not in self:
+                print("I don't know who {} is!".format(user))
+                return
+
+        print("Do you remember this?")
+
+        for user in users:
+            quote = random.choice(self[user])
+            print("{}: {}".format(user, quote))
 
     ###################
     # Helper functions
     ###################
 
-    def validate_syntax(self, args):
+    def validate_syntax(self, args: List[str]):
         #TODO: Standardize error handling
         pass
 
-    def validate_user(self, args: []):
+    def validate_user(self, args: List[str]):
         """
         Check that the user is valid on slack by checking if it starts with
         an "@". [Could be improved in the future by doing an
