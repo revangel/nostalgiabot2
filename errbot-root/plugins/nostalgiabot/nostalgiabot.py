@@ -3,8 +3,10 @@ from errbot import BotPlugin, botcmd, re_botcmd, ValidationException
 
 class NostalgiaBot(BotPlugin):
     """
-    The Security Compass bot that remembers all our funny
-    and out-of-context quotes
+    A bot to remind us of what we'd all rather forget we said.
+
+    NostalgiaBot is the Security Compass bot that remembers all
+    our funny, and out-of-context quotes!
     """
 
     @botcmd(split_args_with=None)
