@@ -77,7 +77,7 @@ class NostalgiaBot(BotPlugin):
         """
 
         try:
-            self.validate_user([arg.lower() for arg in args])
+            self.validate_user_syntax([arg.lower() for arg in args])
         except ValidationException:
             raise ValidationException
 
@@ -120,11 +120,11 @@ class NostalgiaBot(BotPlugin):
                 print("I don't know who {} is!".format(user))
                 return
 
-        print("Do you remember this?")
+        yield "Do you remember this?"
 
         for user in users:
             quote = random.choice(self[user])
-            print("{}: {}".format(user, quote))
+            yield "{}: {}".format(user, quote)
 
     ##################
     # Helper functions
@@ -134,7 +134,8 @@ class NostalgiaBot(BotPlugin):
         #TODO: Standardize error handling
         pass
 
-    def validate_user(self, args: List[str]):
+    @staticmethod
+    def validate_user_syntax(args: List[str]):
         """
         Check that the user is valid on slack by checking if it starts with
         an "@". [Could be improved in the future by doing an
