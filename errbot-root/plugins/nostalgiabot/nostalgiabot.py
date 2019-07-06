@@ -2,7 +2,7 @@ import random
 import re
 
 from errbot import BotPlugin, botcmd, re_botcmd, ValidationException
-from typing import List
+from typing import Dict, List, Tuple
 
 class NostalgiaBot(BotPlugin):
     """
@@ -12,6 +12,10 @@ class NostalgiaBot(BotPlugin):
     our funny, and out-of-context quotes!
     """
 
+    #######################
+    # Main social functions
+    #######################
+
     @botcmd(split_args_with=None)
     def forget(self, msg, args):
         """
@@ -20,6 +24,36 @@ class NostalgiaBot(BotPlugin):
         "Forget @username"
         """
         self.pop(args[0], None)
+
+    @botcmd(split_args_with=None)
+    def converse(self, msg, participants: List[str]):
+        """
+        Output quotes from persons in NostalgiaBot's memory.
+
+        Regex Syntax:
+        [Cc]onverse @(\w+)
+
+        Example:
+        Converse @jeff @kelly
+        """
+
+        MAX_PARTICIPANTS = 5
+        MAX_QUOTES = 5
+
+        # Assume that quotes should not be repeated in a dialog.
+        # If the total number of quotes stored for a participant is less than
+        # MAX_QUOTES, then limit the conversation to that many quotes.
+        min_total_quotes = min([len(self[person]) for person in participants])
+
+        num_quotes = min(MAX_QUOTES, min_total_quotes)
+
+        # List of (person, quote) tuples
+        quotes = self.get_person_quote_pairs(
+            self.get_random_quotes(participants, num_quotes)
+        )
+
+        for quote in quotes:
+            yield("{}: {}".format(quote[0], quote[1]))
 
     @botcmd(split_args_with=None)
     def remember(self, msg, args: List[str]):
@@ -51,8 +85,7 @@ class NostalgiaBot(BotPlugin):
             self[user] = [quote]
         else:
             # The mutable context manager must be used as a caveat of
-            # Errbot's persistence mechanics. Refer to:
-            # http://errbot.io/en/latest/user_guide/plugin_development/persistence.html#caveats #noqa
+            # Errbot's persistence mechanics.
             with self.mutable(user) as quotes:
                 quotes.append(quote)
 
@@ -87,9 +120,9 @@ class NostalgiaBot(BotPlugin):
             quote = random.choice(self[user])
             print("{}: {}".format(user, quote))
 
-    ###################
+    ##################
     # Helper functions
-    ###################
+    ##################
 
     def validate_syntax(self, args: List[str]):
         #TODO: Standardize error handling
@@ -111,3 +144,42 @@ class NostalgiaBot(BotPlugin):
 
         if user[0] != "@":
             raise ValidationException("Username must start with '@'")
+
+    def get_random_quotes(self, people: List[str], n: int):
+        """
+        Return a dict of lists of n quotes from people randomly sampled from
+        NostalgiaBot's memory.
+
+        get_random_quotes(["@leta", "@harry"], 2)
+        > {"@leta": [<quote>, <quote>], "@harry": [<quote>, <quote>]}
+        """
+
+        #TODO: Validate username, check if in memory
+
+        quotes = {person: [] for person in people}
+
+        for person in people:
+            quotes[person] = random.sample(self[person], n)
+
+        return quotes
+
+    def get_person_quote_pairs(self, quotes: Dict):
+        """
+        Return list of (person, quote) tuples from quotes.
+
+        d = {"@ijeff": [<quote1>, <quote2>], "@pranoy": [<quote3>, <quote4>]}
+        get_person_quote_pairs(d)
+        >
+        [
+            ("@ijeff", <quote1>), ("@ijeff", <quote2),
+            ("@pranoy", <quote3>), ("@pranoy", <quote4>)
+        ]
+        """
+
+        quote_pairs = []
+
+        for person in quotes:
+            for quote in quotes[person]:
+                quote_pairs.append((person, quote))
+
+        return quote_pairs
