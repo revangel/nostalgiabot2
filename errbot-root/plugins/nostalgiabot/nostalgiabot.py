@@ -68,10 +68,8 @@ class NostalgiaBot(BotPlugin):
         "The only chinese food I've had before is Sushi"
         """
 
-        args = [arg.lower() for arg in args]
-
         try:
-            self.validate_user(args)
+            self.validate_user([arg.lower() for arg in args])
         except ValidationException as e:
             return e
 
