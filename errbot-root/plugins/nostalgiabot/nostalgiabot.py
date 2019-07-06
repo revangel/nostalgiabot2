@@ -1,8 +1,16 @@
+"""
+NostalgiaBot II
+Main module. For use with errbot.
+"""
+
+__version__ = "0.1.0"
+
 import random
 import re
 
-from errbot import BotPlugin, botcmd, re_botcmd, ValidationException
-from typing import Dict, List, Tuple
+from typing import Dict, List
+
+from errbot import BotPlugin, botcmd, ValidationException
 
 class NostalgiaBot(BotPlugin):
     """
@@ -53,7 +61,7 @@ class NostalgiaBot(BotPlugin):
         )
 
         for quote in quotes:
-            yield("{}: {}".format(quote[0], quote[1]))
+            yield "{}: {}".format(quote[0], quote[1])
 
     @botcmd(split_args_with=None)
     def remember(self, msg, args: List[str]):
@@ -70,8 +78,8 @@ class NostalgiaBot(BotPlugin):
 
         try:
             self.validate_user([arg.lower() for arg in args])
-        except ValidationException as e:
-            return e
+        except ValidationException:
+            raise ValidationException
 
         user = args[args.index("said") - 1]
         quote_start_index = args.index("said") + 1
@@ -143,10 +151,10 @@ class NostalgiaBot(BotPlugin):
         if user[0] != "@":
             raise ValidationException("Username must start with '@'")
 
-    def get_random_quotes(self, people: List[str], n: int):
+    def get_random_quotes(self, people: List[str], num_quotes: int):
         """
-        Return a dict of lists of n quotes from people randomly sampled from
-        NostalgiaBot's memory.
+        Return a dict of lists of num_quotes quotes from people randomly sampled
+        from NostalgiaBot's memory.
 
         get_random_quotes(["@leta", "@harry"], 2)
         > {"@leta": [<quote>, <quote>], "@harry": [<quote>, <quote>]}
@@ -157,11 +165,12 @@ class NostalgiaBot(BotPlugin):
         quotes = {person: [] for person in people}
 
         for person in people:
-            quotes[person] = random.sample(self[person], n)
+            quotes[person] = random.sample(self[person], num_quotes)
 
         return quotes
 
-    def get_person_quote_pairs(self, quotes: Dict):
+    @staticmethod
+    def get_person_quote_pairs(quotes: Dict):
         """
         Return list of (person, quote) tuples from quotes.
 
