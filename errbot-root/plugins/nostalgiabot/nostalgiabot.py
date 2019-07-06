@@ -48,6 +48,13 @@ class NostalgiaBot(BotPlugin):
         MAX_PARTICIPANTS = 5
         MAX_QUOTES = 5
 
+        if len(participants) > MAX_PARTICIPANTS:
+            raise UsageException(
+                "Let's keep the conversation to under 5 people!"
+            )
+
+        self.validate_users(participants)
+
         # Assume that quotes should not be repeated in a dialog.
         # If the total number of quotes stored for a participant is less than
         # MAX_QUOTES, then limit the conversation to that many quotes.
@@ -114,11 +121,7 @@ class NostalgiaBot(BotPlugin):
         # to check and then to output.
         users = list(filter(user_prefix_expression.match, args))
 
-        # TODO: Can we check user validity then output more smoothly?
-        for user in users:
-            if user not in self:
-                print("I don't know who {} is!".format(user))
-                return
+        self.validate_users(users)
 
         yield "Do you remember this?"
 
@@ -151,6 +154,17 @@ class NostalgiaBot(BotPlugin):
 
         if user[0] != "@":
             raise ValidationException("Username must start with '@'")
+
+    def validate_users(self, users: List[str]):
+        """
+        Check that all users in users have quotes stored in memory.
+        """
+
+        for user in users:
+            if user not in self:
+                raise ValidationException(
+                    "I don't know anything about {}...".format(user)
+                )
 
     def get_random_quotes(self, people: List[str], num_quotes: int):
         """
@@ -191,3 +205,10 @@ class NostalgiaBot(BotPlugin):
                 quote_pairs.append((person, quote))
 
         return quote_pairs
+
+
+class UsageException(Exception):
+    """
+    Base class for exceptions not entirely applicable to errbot's
+    ValidationException.
+    """
