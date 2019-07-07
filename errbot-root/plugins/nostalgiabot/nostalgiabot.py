@@ -102,6 +102,8 @@ class NostalgiaBot(BotPlugin):
             with self.mutable(user) as quotes:
                 quotes.append(quote)
 
+        yield "Memory stored!"
+
     @botcmd(split_args_with=None)
     def remind(self, msg, args: List[str]):
         """
