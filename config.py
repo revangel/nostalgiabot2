@@ -11,5 +11,12 @@ class Config(object):
         'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+
 class DevelopmentConfig(Config):
     DEBUG = True
+
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///memory'
+
