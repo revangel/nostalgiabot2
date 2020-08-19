@@ -1,0 +1,45 @@
+openapi: 3.0.0
+info:
+  title: Nostalgiabot 2 API
+  description: Speccs for the Nostlagiabot 2 API
+  version: 0.0
+
+paths:
+  /users:
+    get:
+      summary: Returns a list of all users with quotes in Nostalgiabot
+      responses:
+        '200':
+          description: 'Nostalgiabot remembers these users'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+    post:
+      summary: Add a user to Nostalgiabot's memory
+      requestBody:
+        $ref: '' # TODO
+      responses:
+        '201':
+          description: User added
+
+components:
+  requestBodies:
+    UserPOST:
+      description: JSON object describing a Slack user
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - userId
+            properties:
+              userId:
+                description: A Slack user id. See https://api.slack.com/methods/users.identity
+                type: string
+                example: 'U0G9QF9C6'
+
+
