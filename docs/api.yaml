@@ -16,16 +16,49 @@ paths:
               schema:
                 type: array
                 items:
-                  type: string
+                  $ref: "#/components/schemas/User"
     post:
       summary: Add a user to Nostalgiabot's memory
       requestBody:
-        $ref: '' # TODO
+        $ref: "#/components/requestBodies/UserPOST"
       responses:
         '201':
           description: User added
 
 components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        slack_user_id:
+          type: string
+          example: "W012A3CDE"
+        first_name:
+          type: string
+          example: "Nostalgia"
+        last_name:
+          type: string
+          example: "Bot"
+
+    Quote:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        person_id:
+          type: integer
+          example: 1
+        content:
+          type: string
+          example: "This is a slack message"
+        timestamp:
+          type: string
+          example: "1483051909.018632"
+
   requestBodies:
     UserPOST:
       description: JSON object describing a Slack user
@@ -35,11 +68,44 @@ components:
           schema:
             type: object
             required:
-              - userId
+              - slack_user_id
+              - first_name
             properties:
-              userId:
+              slack_user_id:
                 description: A Slack user id. See https://api.slack.com/methods/users.identity
                 type: string
                 example: 'U0G9QF9C6'
+              first_name:
+                description: The first name of a user.
+                type: string
+                example: "Nostalgia"
+              last_name:
+                description: The last name of a user.
+                type: string
+                example: "Bot"
 
 
+    QuotePost:
+      description: JSON object describing a Quote
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - person_id
+              - content
+              - timestamp
+            properties:
+              person_id:
+                description: The primary key of a user that owns the quote
+                type: integer
+                example: 1
+              content:
+                description: The quoted text that a user said
+                type: string
+                example: "just finished dealing with poo emergency"
+              timestamp:
+                description: The time the quote was submitted to Slack
+                type: string
+                example: "1597855921.001900"
