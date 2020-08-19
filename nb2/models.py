@@ -15,6 +15,22 @@ class Person(db.Model):
     )
     first_name = db.Column(db.String(32), nullable=False)
     last_name = db.Column(db.String(32))
+    quotes = db.relationship('Quote', backref='person', lazy=True)
 
     def __repr__(self):
         return f"<Person: {self.slack_user_id}; Name: {self.first_name}>"
+
+
+class Quote(db.Model):
+    """
+    Represents something a Person has said;
+    usually something funny.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    person_id = db.Column(
+        db.Integer,
+        db.ForeignKey('person.id'),
+        nullable=False
+    )
+    created = db.Column(db.DateTime, nullable=False)
