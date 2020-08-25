@@ -16,18 +16,18 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/User"
+                  $ref: "#/components/schemas/Person"
     post:
       summary: Add a user to Nostalgiabot's memory
       requestBody:
-        $ref: "#/components/requestBodies/UserPOST"
+        $ref: "#/components/requestBodies/PersonPOST"
       responses:
         '201':
-          description: User added
+          description: Person added
 
 components:
   schemas:
-    User:
+    Person:
       type: object
       properties:
         id:
@@ -60,7 +60,7 @@ components:
           example: "1483051909.018632"
 
   requestBodies:
-    UserPOST:
+    PersonPOST:
       description: JSON object describing a Slack user
       required: true
       content:
