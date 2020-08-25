@@ -1,16 +1,16 @@
 openapi: 3.0.0
 info:
   title: Nostalgiabot 2 API
-  description: Speccs for the Nostlagiabot 2 API
-  version: 0.0
+  description: Specs for the Nostalgiabot 2 API
+  version: 0.1
 
 paths:
-  /users:
+  /people:
     get:
-      summary: Returns a list of all users with quotes in Nostalgiabot
+      summary: Returns a list of all Persons with quotes in Nostalgiabot
       responses:
         '200':
-          description: 'Nostalgiabot remembers these users'
+          description: 'Nostalgiabot remembers these people:'
           content:
             application/json:
               schema:
@@ -18,7 +18,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/Person"
     post:
-      summary: Add a user to Nostalgiabot's memory
+      summary: Add a Person to Nostalgiabot's memory
       requestBody:
         $ref: "#/components/requestBodies/PersonPOST"
       responses:
@@ -76,11 +76,11 @@ components:
                 type: string
                 example: 'U0G9QF9C6'
               first_name:
-                description: The first name of a user.
+                description: The first name of a Slack user.
                 type: string
                 example: "Nostalgia"
               last_name:
-                description: The last name of a user.
+                description: The last name of a Slack user.
                 type: string
                 example: "Bot"
 
@@ -98,11 +98,11 @@ components:
               - timestamp
             properties:
               person_id:
-                description: The primary key of a user that owns the quote
+                description: The primary key of a Person that owns the quote
                 type: integer
                 example: 1
               content:
-                description: The quoted text that a user said
+                description: The quoted text that a Person said
                 type: string
                 example: "just finished dealing with poo emergency"
               timestamp:
