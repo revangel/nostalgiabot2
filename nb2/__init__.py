@@ -6,7 +6,7 @@ from flask_migrate import Migrate
 
 from config import Config, DevelopmentConfig
 
-from nb2 import api, db
+from nb2 import db
 from nb2.slackbot import SlackBot
 
 
@@ -27,6 +27,7 @@ def create_app(config=Config):
     db.init_app(app)
     migrate.init_app(app, db)
 
+    from nb2 import api
     app.register_blueprint(api.bp)
 
     signing_secret = os.environ['SLACK_SIGNING_SECRET']

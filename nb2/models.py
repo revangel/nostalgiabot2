@@ -20,6 +20,14 @@ class Person(db.Model):
     def __repr__(self):
         return f"<Person: {self.slack_user_id}; Name: {self.first_name}>"
 
+    def serialize(self):
+        return {
+            'id': self.id,
+            'slack_user_id': self.slack_user_id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'quotes': [quote.content for quote in self.quotes]
+        }
 
 class Quote(db.Model):
     """
