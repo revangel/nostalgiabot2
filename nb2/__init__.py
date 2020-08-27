@@ -12,7 +12,7 @@ from nb2.slackbot import SlackBot
 
 db = SQLAlchemy()
 migrate = Migrate()
-bot = SlackBot(token=os.environ['SLACK_BOT_TOKEN'])
+bot = SlackBot()
 
 
 def create_app(config=Config):
@@ -30,9 +30,10 @@ def create_app(config=Config):
     from nb2 import api
     app.register_blueprint(api.bp)
 
+    token = os.environ['SLACK_BOT_TOKEN']
     signing_secret = os.environ['SLACK_SIGNING_SECRET']
     event_url = os.environ['SLACK_EVENTS_URL']
-    bot.init_app(signing_secret, event_url, app)
+    bot.init_app(token, signing_secret, event_url, app)
 
     # This is somewhat of a hack so that the decorators that
     # register slack event handlers will be run after
