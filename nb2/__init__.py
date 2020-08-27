@@ -38,6 +38,15 @@ def create_app(config=Config):
     # register slack event handlers will be run after
     # initializing the SlackEventAdapter in the bot.
     from nb2 import slack_events
+    from nb2.models import Person, Quote
+
+    @app.shell_context_processor
+    def make_shell_context():
+        """
+        Automatically import commonly used models when starting
+        the Flask shell
+        """
+        return {'db': db, 'Person': Person, 'Quote': Quote}
 
     return app
 
