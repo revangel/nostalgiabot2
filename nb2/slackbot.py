@@ -3,11 +3,12 @@ from slackeventsapi import SlackEventAdapter
 
 
 class SlackBot:
-    def __init__(self, token):
-        self.web_client = WebClient(token=token)
+    def __init__(self):
+        self.web_client = None
         self.event_adapter = None
 
-    def init_app(self, signing_secret, event_url, app):
+    def init_app(self, token, signing_secret, event_url, app):
+        self.web_client = WebClient(token=token)
         self.event_adapter = SlackEventAdapter(signing_secret, event_url, app)
 
     def send_text(self, text, channel):

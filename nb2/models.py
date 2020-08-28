@@ -17,6 +17,9 @@ class Person(db.Model):
     last_name = db.Column(db.String(32))
     quotes = db.relationship('Quote', backref='person', lazy=True)
 
+    required_fields = ['slack_user_id', 'first_name']
+    editable_fields = ['slack_user_id', 'first_name', 'last_name']
+
     def __repr__(self):
         return f"<Person: {self.slack_user_id}; Name: {self.first_name}>"
 
@@ -28,6 +31,15 @@ class Person(db.Model):
             'last_name': self.last_name,
             'quotes': [quote.content for quote in self.quotes]
         }
+
+    def deserialize(self, data):
+        """
+        Update the editable fields on a person with `data`.
+        """
+        for field in self.editable_fields:
+            if field in data:
+                setattr(self, field, data[field])
+
 
 class Quote(db.Model):
     """
