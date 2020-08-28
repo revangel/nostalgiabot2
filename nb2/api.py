@@ -21,9 +21,10 @@ def get_all_people():
 def create_person():
     data = request.get_json() or {}
     slack_user_id = data.get('slack_user_id')
+    missing_required_fields = set(Person.required_fields) - set(data.keys())
 
-    if not all(field in data for field in Person.required_fields):
-        error_msg = f"Missing required field(s): {', '.join(set(Person.required_fields) - set(data.keys()))}"
+    if missing_required_fields:
+        error_msg = f"Missing required field(s): {', '.join(missing_required_fields)}"
         return validation_error(error_msg)
 
     if Person.query.filter(Person.slack_user_id == slack_user_id).first():
