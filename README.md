@@ -7,14 +7,22 @@
 Nostalgiabot II is the sequel to Nostalgiabot, originally written by Martin Petkov.
 
 ## Development Setup
-1. Create a new .env file in the root directory of the project using .env.example as a template
+### Environment & Configs
+Create a new .env file in the root directory of the project using .env.example as a template
    ```
    cp .env.example .env
    ```
 
    *Do not commit this new file as it will contain secret keys!*
 
-2. Set `FLASK_ENVIRONMENT` to `development`. This enables the debugger and hot reloading.
+Set `FLASK_ENVIRONMENT` to `development`. This enables the debugger and hot reloading.
+
+### Database
+
+To initialize the SQLite database, run:
+```
+flask db update
+```
 
 ## Steps to Create Slack Bot
 
