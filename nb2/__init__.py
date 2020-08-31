@@ -15,14 +15,14 @@ migrate = Migrate()
 bot = SlackBot()
 
 
-def create_app(config=Config):
+def create_app(config=DevelopmentConfig):
     """Create and configure an instance of Nostalgiabot2"""
 
     app = Flask(__name__, instance_relative_config=True)
 
     # TODO:
     # Find a way to set this more dynamically
-    app.config.from_object(DevelopmentConfig)
+    app.config.from_object(config)
 
     db.init_app(app)
     migrate.init_app(app, db)
