@@ -54,3 +54,6 @@ class Quote(db.Model):
         nullable=False
     )
     created = db.Column(db.DateTime, nullable=False)
+
+    def __repr__(self):
+        return f"<Quote: {self.content} id: {self.id}>"
