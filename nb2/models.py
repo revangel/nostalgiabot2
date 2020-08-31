@@ -21,7 +21,7 @@ class Person(db.Model):
     editable_fields = ['slack_user_id', 'first_name', 'last_name']
 
     def __repr__(self):
-        return f"<Person: {self.slack_user_id}; Name: {self.first_name}>"
+        return f"<Person: {self.slack_user_id} |  Name: {self.first_name} | Id: {self.id}>"
 
     def serialize(self):
         return {
@@ -56,4 +56,4 @@ class Quote(db.Model):
     created = db.Column(db.DateTime, nullable=False)
 
     def __repr__(self):
-        return f"<Quote: {self.content} | id: {self.id}>"
+        return f"<Quote: {self.content} | Id: {self.id}>"
