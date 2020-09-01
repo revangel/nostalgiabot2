@@ -10,7 +10,7 @@ paths:
       summary: Returns a list of all Persons with quotes in Nostalgiabot
       responses:
         '200':
-          description: 'Nostalgiabot remembers these people:'
+          description: 'People matching criteria:'
           content:
             application/json:
               schema:
@@ -24,6 +24,59 @@ paths:
       responses:
         '201':
           description: Person added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Missing required field(s): first_name, slack_user_id"
+        '409':
+          description: slack_user_id conflict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Person with slack_user_id W012A3CDE already exists"
+
+  /people/{slack_user_id}:
+    get:
+      summary: Returns a specific Person by their slack_user_id with quotes in Nostalgiabot
+      parameters:
+        - in: path
+          required: true
+          name: slack_user_id
+          description: The unique ID assigned by Slack to a user
+          schema:
+            type: string
+            example: "W012A3CDE"
+      responses:
+        "200":
+          description: "Person matching criteria:"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+        "404":
+          description: slack_user_id does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Person with slack_user_id W012A3CDE does not exist"
 
 components:
   schemas:
@@ -42,6 +95,10 @@ components:
         last_name:
           type: string
           example: "Bot"
+        quotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Quote'
 
     Quote:
       type: object
