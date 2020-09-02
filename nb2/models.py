@@ -25,22 +25,21 @@ class Person(db.Model):
     def __repr__(self):
         return f"<Person: {self.slack_user_id} | Name: {self.first_name} | Id: {self.id}>"
 
-    def serialize(self):
-        return {
-            'id': self.id,
-            'slack_user_id': self.slack_user_id,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'quotes': [quote.content for quote in self.quotes]
-        }
-
-    def deserialize(self, data):
+    @staticmethod
+    def create(data):
         """
         Update the editable fields on a person with `data`.
         """
-        for field in self.editable_fields:
+        new_person = Person()
+        for field in Person.editable_fields:
             if field in data:
-                setattr(self, field, data[field])
+                setattr(new_person, field, data[field])
+
+        db.session.add(new_person)
+        db.session.commit()
+        db.session.refresh(new_person)
+
+        return new_person
 
     def has_said(self, quote:str) -> bool:
         """
