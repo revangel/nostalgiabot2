@@ -1,7 +1,17 @@
 from nb2 import db
 
 
-class Person(db.Model):
+class DeserializableModelMixin:
+    def deserialize(self, data):
+        """
+        Update the editable fields on a person with `data`.
+        """
+        # Should this be for all fields?
+        for field in self.editable_fields:
+            if field in data:
+                setattr(self, field, data[field])
+
+class Person(db.Model, DeserializableModelMixin):
     """
     Represents someone that Nostalgiabot has quotes for;
     usually an SDE employee.
@@ -21,7 +31,7 @@ class Person(db.Model):
     editable_fields = ['slack_user_id', 'first_name', 'last_name']
 
     def __repr__(self):
-        return f"<Person: {self.slack_user_id} |  Name: {self.first_name} | Id: {self.id}>"
+        return f"<Person: {self.slack_user_id} | Name: {self.first_name} | Id: {self.id}>"
 
     def serialize(self):
         return {
@@ -32,16 +42,8 @@ class Person(db.Model):
             'quotes': [quote.content for quote in self.quotes]
         }
 
-    def deserialize(self, data):
-        """
-        Update the editable fields on a person with `data`.
-        """
-        for field in self.editable_fields:
-            if field in data:
-                setattr(self, field, data[field])
 
-
-class Quote(db.Model):
+class Quote(db.Model, DeserializableModelMixin):
     """
     Represents something a Person has said;
     usually something funny.
@@ -54,6 +56,9 @@ class Quote(db.Model):
         nullable=False
     )
     created = db.Column(db.DateTime, nullable=False)
+
+    required_fields = ['person_id', 'content']
+    editable_fields = ['content']
 
     def __repr__(self):
         return f"<Quote: {self.content} | Id: {self.id}>"
