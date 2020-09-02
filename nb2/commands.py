@@ -14,7 +14,7 @@ bp = Blueprint('commands', __name__, cli_group=None)
 def generate_data(people: int, quotes: int):
     """
     Create people amount of Person objects in the database each
-    with quotes amount of Quotes.
+    with quotes amount of Quotes. BLAH BLAH
     """
     current_app.logger.info(
         f"Generating {people} People objects with {quotes} Quotes each..."
