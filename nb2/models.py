@@ -19,18 +19,28 @@ class Person(db.Model):
 
     required_fields = ['slack_user_id', 'first_name']
     editable_fields = ['slack_user_id', 'first_name', 'last_name']
+    include_fields = ['quotes']
 
     def __repr__(self):
         return f"<Person: {self.slack_user_id} |  Name: {self.first_name} | Id: {self.id}>"
 
-    def serialize(self):
-        return {
+    @property
+    def get_quotes(self):
+        return [quote.content for quote in self.quotes]
+
+    def serialize(self, includes=None):
+        includes = includes or []
+        data = {
             'id': self.id,
             'slack_user_id': self.slack_user_id,
             'first_name': self.first_name,
-            'last_name': self.last_name,
-            'quotes': [quote.content for quote in self.quotes]
+            'last_name': self.last_name
         }
+
+        for field in set(includes) & set(self.include_fields):
+            data.update({field: getattr(self, f"get_{field}")})
+
+        return data
 
     def deserialize(self, data):
         """

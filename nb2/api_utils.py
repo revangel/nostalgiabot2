@@ -1,4 +1,6 @@
-from flask import jsonify
+import json
+
+from flask import current_app
 
 
 def _error_response(status_code, message):
@@ -9,7 +11,7 @@ def _error_response(status_code, message):
         'message': message
     }
 
-    response = jsonify(payload)
+    response = make_json_response(payload)
     response.status_code = status_code
 
     return response
@@ -35,3 +37,9 @@ def conflict(message):
     """
     return _error_response(409, message)
 
+
+def make_json_response(data):
+    return current_app.response_class(
+        json.dumps(data),
+        mimetype=current_app.config["JSONIFY_MIMETYPE"],
+    )

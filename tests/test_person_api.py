@@ -4,17 +4,21 @@ import pytest
 from mixer.backend.flask import mixer
 from flask import url_for
 
-from nb2.models import Person
+from nb2.models import Person, Quote
 
 
-def get_serialized_person(person):
-    return {
+def get_serialized_person(person, include_quotes=False):
+    data = {
         "id": person.id,
         "slack_user_id": person.slack_user_id,
         "first_name": person.first_name,
         "last_name": person.last_name,
-        "quotes": person.quotes
     }
+
+    if include_quotes:
+        data.update({"quotes": person.get_quotes})
+
+    return data
 
 
 @pytest.mark.parametrize('num_people', (0, 2))
@@ -26,6 +30,24 @@ def test_get_all_people(num_people, client, session):
     response_json = response.json
     assert response.status_code == 200
     assert len(response_json) == num_people
+
+    for person in response_json:
+        assert 'quotes' not in person
+
+
+@pytest.mark.parametrize('num_quotes', (0, 2))
+def test_get_all_people_with_quotes(num_quotes, client, session):
+    person = mixer.blend(Person)
+    mixer.cycle(num_quotes).blend(Quote, person=person)
+
+    response = client.get(url_for('api.get_all_people', include='quotes'))
+    response_json = response.json
+    assert response.status_code == 200
+    assert len(response_json) == 1
+
+    person_dict = response_json[0]
+    assert "quotes" in person_dict
+    assert len(person_dict.get("quotes")) == num_quotes
 
 
 def test_get_person(client, session):
@@ -86,7 +108,6 @@ def test_create_person(client, session):
     response_json = response.json
     assert response.status_code == 201
     assert isinstance(response_json.get("id"), int)
-    assert isinstance(response_json.get('quotes'), list)
     for field, value in data.items():
         assert response_json.get(field) == value
 

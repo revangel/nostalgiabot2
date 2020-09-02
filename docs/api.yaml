@@ -2,12 +2,23 @@ openapi: 3.0.0
 info:
   title: Nostalgiabot 2 API
   description: Specs for the Nostalgiabot 2 API
-  version: 0.1
+  version: "0.1"
 
 paths:
   /people:
     get:
       summary: Returns a list of all Persons with quotes in Nostalgiabot
+      parameters:
+        - in: query
+          name: include_quotes
+          schema:
+            type: boolean
+            default: false
+          description: Set to true to include quotes
+          examples:
+            include:
+              summary: Example of including quotes
+              value: true
       responses:
         '200':
           description: 'People matching criteria:'
@@ -16,7 +27,9 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Person"
+                  oneOf:
+                    - $ref: "#/components/schemas/Person"
+                    - $ref: "#/components/schemas/PersonWithQuotes"
     post:
       summary: Add a Person to Nostalgiabot's memory
       requestBody:
@@ -60,13 +73,25 @@ paths:
           schema:
             type: string
             example: "W012A3CDE"
+        - in: query
+          name: include_quotes
+          schema:
+            type: boolean
+            default: false
+          description: Set to true to include quotes
+          examples:
+            include:
+              summary: Example of including quotes
+              value: true
       responses:
         "200":
           description: "Person matching criteria:"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Person"
+                oneOf:
+                  - $ref: "#/components/schemas/Person"
+                  - $ref: "#/components/schemas/PersonWithQuotes"
         "404":
           description: slack_user_id does not exist
           content:
@@ -95,10 +120,27 @@ components:
         last_name:
           type: string
           example: "Bot"
+
+    PersonWithQuotes:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        slack_user_id:
+          type: string
+          example: "W012A3CDE"
+        first_name:
+          type: string
+          example: "Nostalgia"
+        last_name:
+          type: string
+          example: "Bot"
         quotes:
           type: array
           items:
-            $ref: '#/components/schemas/Quote'
+            type: string
+            example: "Lorem ipsum dolor sit amet."
 
     Quote:
       type: object
