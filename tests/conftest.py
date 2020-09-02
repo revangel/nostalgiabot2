@@ -17,8 +17,6 @@ def app(request):
 
     app = create_app(TestConfig)
 
-    mixer.init_app(app)
-
     return app
 
 
@@ -58,6 +56,7 @@ def session(app, db, request):
     session = _db.create_scoped_session(options=options)
 
     _db.session = session
+    mixer.init_app(app)
 
     yield session
 
