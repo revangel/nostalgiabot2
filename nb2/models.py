@@ -67,7 +67,7 @@ class Quote(db.Model):
         db.ForeignKey('person.id'),
         nullable=False
     )
-    created = db.Column(db.DateTime, nullable=False)
+    created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     required_fields = ['slack_user_id', 'content']
     editable_fields = ['content']
@@ -75,19 +75,18 @@ class Quote(db.Model):
     def __repr__(self):
         return f"<Quote: {self.content} | Id: {self.id}>"
 
-    def serialize(self):
-        return {
-            'id': self.id,
-            'content': self.content,
-            'person_id': self.person_id,
-            'created': self.created,
-        }
-
-    def deserialize(self, data):
+    @staticmethod
+    def create(data):
         person_id = Person.query.filter(Person.slack_user_id==data['slack_user_id']) \
                     .one() \
                     .id
-        setattr(self, 'content', data['content'])
-        setattr(self, 'person_id', person_id)
-        setattr(self, 'created', datetime.now())
+
+        new_quote = Quote()
+        new_quote.content = data['content']
+        new_quote.person_id = person_id
+        db.session.add(new_quote)
+        db.session.commit()
+        db.session.refresh(new_quote)
+
+        return new_quote
 
