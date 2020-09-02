@@ -1,6 +1,8 @@
 import json
-
 import pytest
+
+from datetime import datetime
+from dateutil.parser import parse
 from mixer.backend.flask import mixer
 from flask import url_for
 
@@ -15,6 +17,10 @@ def get_serialized_person(person):
         "last_name": person.last_name,
         "quotes": person.quotes
     }
+
+@pytest.fixture()
+def prepared_user():
+    return mixer.blend(Person)
 
 
 @pytest.mark.parametrize('num_people', (0, 2))
@@ -130,3 +136,25 @@ def test_cannot_create_person_with_duplicate_slack_user_id(field, client, sessio
     response_json = response.json
     assert response.status_code == 400
     assert response_json.get("message") == expected_error
+
+
+def test_create_quote(client, session, prepared_user):
+    data = {
+        "slack_user_id": prepared_user.slack_user_id,
+        "content": "",
+    }
+
+    response = client.post(
+        url_for('api.create_quote'),
+        data=json.dumps(data),
+        content_type='application/json'
+    )
+
+    response_json = response.json
+    created_date = parse(response_json.get('created'))
+
+    assert response.status_code == 201
+
+    assert isinstance(response_json.get('id'), int)
+    assert isinstance(response_json.get('content'), str)
+    assert isinstance(created_date, datetime)

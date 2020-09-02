@@ -71,9 +71,10 @@ class Quote(db.Model):
         }
 
     def deserialize(self, data):
-        person_id = Person.query.filter(Person.slack_user_id==data['slack_user_id']).one().id
+        person_id = Person.query.filter(Person.slack_user_id==data['slack_user_id']) \
+                    .one() \
+                    .id
         setattr(self, 'content', data['content'])
-        import ipdb; ipdb.set_trace()
         setattr(self, 'person_id', person_id)
         setattr(self, 'created', datetime.now())
 
