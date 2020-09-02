@@ -27,7 +27,7 @@ def prepared_user():
 def test_get_all_people(num_people, client, session):
     mixer.cycle(num_people).blend(Person)
 
-    response = client.get(url_for('api.get_all_people'))
+    response = client.get(url_for('api.personlistresource'))
 
     response_json = response.json
     assert response.status_code == 200
@@ -38,7 +38,7 @@ def test_get_person(client, session):
     expected_person = mixer.blend(Person)
     expected_data = get_serialized_person(expected_person)
 
-    response = client.get(url_for('api.get_person', slack_user_id=expected_person.slack_user_id))
+    response = client.get(url_for('api.personresource', slack_user_id=expected_person.slack_user_id))
 
     response_json = response.json
     assert response.status_code == 200
@@ -52,7 +52,7 @@ def test_get_correct_person_by_slack_user_id(client, session):
 
     assert expected_person.id != other_person.id and expected_person.slack_user_id != other_person.slack_user_id
 
-    response = client.get(url_for('api.get_person', slack_user_id=expected_person.slack_user_id))
+    response = client.get(url_for('api.personresource', slack_user_id=expected_person.slack_user_id))
 
     response_json = response.json
     assert response.status_code == 200
@@ -69,7 +69,7 @@ def test_get_person_raises_404_if_person_does_not_exist(client, session):
 
     expected_error = f"Person with slack_user_id {slack_user_id_lookup} does not exist"
 
-    response = client.get(url_for('api.get_person', slack_user_id=slack_user_id_lookup))
+    response = client.get(url_for('api.personresource', slack_user_id=slack_user_id_lookup))
 
     response_json = response.json
     assert response.status_code == 404
@@ -84,7 +84,7 @@ def test_create_person(client, session):
     }
 
     response = client.post(
-        url_for('api.create_person'),
+        url_for('api.personlistresource'),
         data=json.dumps(data),
         content_type='application/json'
     )
@@ -104,10 +104,10 @@ def test_cannot_create_person_with_duplicate_slack_user_id(client, session):
         "first_name": "foo",
         "last_name": "bar"
     }
-    expected_error = f"Person with slack_user_id = '{data['slack_user_id']}' already exists"
+    expected_error = f"Person with slack_user_id {data['slack_user_id']} already exists"
 
     response = client.post(
-        url_for('api.create_person'),
+        url_for('api.personlistresource'),
         data=json.dumps(data),
         content_type='application/json'
     )
@@ -117,18 +117,18 @@ def test_cannot_create_person_with_duplicate_slack_user_id(client, session):
     assert response_json.get("message") == expected_error
 
 
-@pytest.mark.parametrize('field', Person.required_fields)
-def test_cannot_create_person_with_duplicate_slack_user_id(field, client, session):
+@pytest.mark.parametrize('field', ['slack_user_id', 'first_name'])
+def test_cannot_create_person_with_missing_required_fields(field, client, session):
     data = {
         "slack_user_id": "foobar",
         "first_name": "foo",
         "last_name": "bar"
     }
-    expected_error = f"Missing required field(s): {field}"
+    expected_error = {field: f'{field} is required'}
     data.pop(field)
 
     response = client.post(
-        url_for('api.create_person'),
+        url_for('api.personlistresource'),
         data=json.dumps(data),
         content_type='application/json'
     )
@@ -145,7 +145,7 @@ def test_create_quote(client, session, prepared_user):
     }
 
     response = client.post(
-        url_for('api.create_quote'),
+        url_for('api.quotelistresource'),
         data=json.dumps(data),
         content_type='application/json'
     )
@@ -159,6 +159,7 @@ def test_create_quote(client, session, prepared_user):
     assert isinstance(response_json.get('content'), str)
     assert isinstance(created_date, datetime)
 
+
 def test_cannot_create_duplicate_quote(client, session, prepared_user):
     data = {
         "slack_user_id": prepared_user.slack_user_id,
@@ -166,7 +167,7 @@ def test_cannot_create_duplicate_quote(client, session, prepared_user):
     }
 
     response = client.post(
-        url_for('api.create_quote'),
+        url_for('api.quotelistresource'),
         data=json.dumps(data),
         content_type='application/json'
     )
@@ -174,7 +175,7 @@ def test_cannot_create_duplicate_quote(client, session, prepared_user):
     # Intentional duplicate call to test validation against
     # duplicate quotes
     response = client.post(
-        url_for('api.create_quote'),
+        url_for('api.quotelistresource'),
         data=json.dumps(data),
         content_type='application/json'
     )

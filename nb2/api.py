@@ -1,86 +1,180 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint
+from flask_restful import abort, Api, fields, marshal, reqparse, Resource
+from sqlalchemy.exc import IntegrityError
 
-from nb2 import db
-from nb2.errors import conflict, does_not_exist_error, validation_error
 from nb2.models import Person, Quote
-from nb2.validators import Validators
-
-bp = Blueprint('api', __name__)
 
 
-@bp.route('/')
-def hello():
-    return 'Hello'
+bp = Blueprint("api", __name__)
+api = Api(bp)
 
 
-@bp.route('/people', methods=['GET'])
-def get_all_people():
-    return jsonify([person.serialize() for person in Person.query.all()])
+class PersonResourceBase(Resource):
+    def __init__(self, *args, **kwargs):
+        self.fields = {
+            "id": fields.Integer,
+            "slack_user_id": fields.String,
+            "first_name": fields.String,
+            "last_name": fields.String,
+            "quotes": fields.List(fields.String(attribute="content")),
+        }
+
+        self.parser = reqparse.RequestParser(bundle_errors=True)
+
+        super().__init__(*args, **kwargs)
 
 
-@bp.route('/people/<slack_user_id>', methods=['GET'])
-def get_person(slack_user_id):
-    person = Person.query.filter_by(slack_user_id=slack_user_id).first()
+class PersonResource(PersonResourceBase):
 
-    if person is None:
-        error_msg = f"Person with slack_user_id {slack_user_id} does not exist"
-        return does_not_exist_error(error_msg)
+    ERRORS = {
+        "does_not_exist":
+            "Person with slack_user_id {slack_user_id} does not exist"
+    }
 
-    return jsonify(person.serialize())
+    def get(self, slack_user_id):
+        person = Person.query.filter_by(
+            slack_user_id=slack_user_id
+        ).one_or_none()
+
+        if person is None:
+            abort(
+                404,
+                message=self.ERRORS["does_not_exist"].format(
+                    slack_user_id=slack_user_id
+                ),
+            )
+
+        return marshal(person, self.fields), 200
 
 
-@bp.route('/people', methods=['POST'])
-def create_person():
-    data = request.get_json() or {}
-    slack_user_id = data.get('slack_user_id')
+class PersonListResource(PersonResourceBase):
 
-    required_field_errors = Validators.validate_required_fields_are_provided(Person, data)
-    if required_field_errors:
-        return required_field_errors
+    ERRORS = {
+        "slack_user_id_missing": "slack_user_id is required",
+        "first_name_missing": "first_name is required",
+        "already_exists":
+            "Person with slack_user_id {slack_user_id} already exists",
+    }
 
-    if Person.query.filter(Person.slack_user_id == slack_user_id).first():
-        error_msg = f"Person with slack_user_id {slack_user_id} already exists"
-        return conflict(error_msg)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    new_person = Person()
-    new_person.deserialize(data)
-    db.session.add(new_person)
-    db.session.commit()
-    db.session.refresh(new_person)
+        self.parser.add_argument(
+            "slack_user_id",
+            dest="slack_user_id",
+            required=True,
+            type=str,
+            help=self.ERRORS.get("slack_user_id_missing"),
+        )
+        self.parser.add_argument(
+            "first_name",
+            dest="first_name",
+            required=True,
+            type=str,
+            help=self.ERRORS.get("first_name_missing"),
+        )
+        self.parser.add_argument(
+            "last_name",
+            dest="last_name",
+            type=str,
+        )
 
-    response = jsonify(new_person.serialize())
-    response.status_code = 201
+    def get(self):
+        people = Person.query.all()
+        return marshal(people, self.fields), 200
 
-    return response
+    def post(self):
+        parsed_args = self.parser.parse_args()
+        slack_user_id = parsed_args.get("slack_user_id")
 
-@bp.route('/quotes', methods=['POST'])
-def create_quote():
-    data = request.get_json() or {}
-    slack_user_id = data.get('slack_user_id')
+        try:
+            new_person = Person.create(parsed_args)
+        except IntegrityError:
+            return abort(
+                409,
+                message=self.ERRORS.get("already_exists").format(
+                    slack_user_id=slack_user_id
+                ),
+            )
 
-    required_field_errors = Validators.validate_required_fields_are_provided(Quote, data)
-    if required_field_errors:
-        return required_field_errors
+        return marshal(new_person, self.fields), 201
 
-    target_person = Person.query.filter(Person.slack_user_id==slack_user_id).one_or_none()
 
-    if not target_person:
-        error_msg = f"Can't add a quote to Person with slack_user_id {slack_user_id} " \
-                     "because they don't exist."
-        return validation_error(error_msg)
+class QuoteResourceBase(Resource):
+    def __init__(self, *args, **kwargs):
+        self.fields = {
+            "id": fields.Integer,
+            "content": fields.String,
+            "person_id": fields.Integer(),
+            "created": fields.DateTime,
+        }
 
-    if target_person.has_said(data.get('content')):
-        error_msg = f"The Quote content provided can't be added because it already exists " \
-                     "for this Person."
-        return validation_error(error_msg)
+        self.parser = reqparse.RequestParser(bundle_errors=True)
 
-    new_quote = Quote()
-    new_quote.deserialize(data)
-    db.session.add(new_quote)
-    db.session.commit()
-    db.session.refresh(new_quote)
+        super().__init__(*args, **kwargs)
 
-    response = jsonify(new_quote.serialize())
-    response.status_code = 201
 
-    return response
+class QuoteListResource(QuoteResourceBase):
+    ERRORS = {
+        "slack_user_id_missing": "slack_user_id is required",
+        "content_missing": "content is required",
+        "person_does_not_exist": (
+            "Can't add a quote to Person with slack_user_id "
+            "{slack_user_id} because they don't exist."
+        ),
+        "already_exists": (
+            "The Quote content provided can't be added because "
+            "it already exists for this Person."
+        )
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.parser.add_argument(
+            "slack_user_id",
+            dest="slack_user_id",
+            required=True,
+            type=str,
+            help=self.ERRORS.get("slack_user_id_missing"),
+        )
+        self.parser.add_argument(
+            "content",
+            dest="content",
+            required=True,
+            type=str,
+            help=self.ERRORS.get("content_missing"),
+        )
+
+    def post(self):
+        parsed_args = self.parser.parse_args()
+        slack_user_id = parsed_args.get("slack_user_id")
+
+        target_person = Person.query.filter(
+            Person.slack_user_id == slack_user_id
+        ).one_or_none()
+
+        if not target_person:
+            return abort(
+                400,
+                message=self.ERRORS.get("person_does_not_exist").format(
+                    slack_user_id=slack_user_id
+                ),
+            )
+
+        if target_person.has_said(parsed_args.get("content")):
+            return abort(
+                400,
+                message=self.ERRORS.get("already_exists").format(
+                    slack_user_id=slack_user_id
+                ),
+            )
+
+        new_quote = Quote.create(parsed_args)
+
+        return marshal(new_quote, self.fields), 201
+
+
+api.add_resource(PersonListResource, "/people")
+api.add_resource(PersonResource, "/people/<string:slack_user_id>")
+api.add_resource(QuoteListResource, "/quotes")

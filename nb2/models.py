@@ -19,28 +19,24 @@ class Person(db.Model):
     last_name = db.Column(db.String(32))
     quotes = db.relationship('Quote', backref='person', lazy=True)
 
-    required_fields = ['slack_user_id', 'first_name']
-    editable_fields = ['slack_user_id', 'first_name', 'last_name']
-
     def __repr__(self):
         return f"<Person: {self.slack_user_id} | Name: {self.first_name} | Id: {self.id}>"
 
-    def serialize(self):
-        return {
-            'id': self.id,
-            'slack_user_id': self.slack_user_id,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'quotes': [quote.content for quote in self.quotes]
-        }
-
-    def deserialize(self, data):
+    @staticmethod
+    def create(data):
         """
         Update the editable fields on a person with `data`.
         """
-        for field in self.editable_fields:
-            if field in data:
-                setattr(self, field, data[field])
+        new_person = Person()
+        new_person.slack_user_id = data['slack_user_id']
+        new_person.first_name = data['first_name']
+        new_person.last_name = data['last_name']
+
+        db.session.add(new_person)
+        db.session.commit()
+        db.session.refresh(new_person)
+
+        return new_person
 
     def has_said(self, quote:str) -> bool:
         """
@@ -68,27 +64,24 @@ class Quote(db.Model):
         db.ForeignKey('person.id'),
         nullable=False
     )
-    created = db.Column(db.DateTime, nullable=False)
-
-    required_fields = ['slack_user_id', 'content']
-    editable_fields = ['content']
+    created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def __repr__(self):
         return f"<Quote: {self.content} | Id: {self.id}>"
 
-    def serialize(self):
-        return {
-            'id': self.id,
-            'content': self.content,
-            'person_id': self.person_id,
-            'created': self.created,
-        }
-
-    def deserialize(self, data):
+    @staticmethod
+    def create(data):
         person_id = Person.query.filter(Person.slack_user_id==data['slack_user_id']) \
                     .one() \
                     .id
-        setattr(self, 'content', data['content'])
-        setattr(self, 'person_id', person_id)
-        setattr(self, 'created', datetime.now())
+
+        new_quote = Quote()
+        new_quote.content = data['content']
+        new_quote.person_id = person_id
+
+        db.session.add(new_quote)
+        db.session.commit()
+        db.session.refresh(new_quote)
+
+        return new_quote
 
