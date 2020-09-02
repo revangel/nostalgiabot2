@@ -2,7 +2,8 @@ from flask import Blueprint, jsonify, request
 
 from nb2 import db
 from nb2.errors import conflict, does_not_exist_error, validation_error
-from nb2.models import Person
+from nb2.models import Person, Quote
+from nb2.validators import Validators
 
 bp = Blueprint('api', __name__)
 
@@ -32,11 +33,10 @@ def get_person(slack_user_id):
 def create_person():
     data = request.get_json() or {}
     slack_user_id = data.get('slack_user_id')
-    missing_required_fields = set(Person.required_fields) - set(data.keys())
 
-    if missing_required_fields:
-        error_msg = f"Missing required field(s): {', '.join(missing_required_fields)}"
-        return validation_error(error_msg)
+    required_field_errors = Validators.validate_required_fields_are_provided(Person, data)
+    if required_field_errors:
+        return required_field_errors
 
     if Person.query.filter(Person.slack_user_id == slack_user_id).first():
         error_msg = f"Person with slack_user_id {slack_user_id} already exists"
@@ -49,6 +49,38 @@ def create_person():
     db.session.refresh(new_person)
 
     response = jsonify(new_person.serialize())
+    response.status_code = 201
+
+    return response
+
+@bp.route('/quotes', methods=['POST'])
+def create_quote():
+    data = request.get_json() or {}
+    slack_user_id = data.get('slack_user_id')
+
+    required_field_errors = Validators.validate_required_fields_are_provided(Quote, data)
+    if required_field_errors:
+        return required_field_errors
+
+    target_person = Person.query.filter(Person.slack_user_id==slack_user_id).one_or_none()
+
+    if not target_person:
+        error_msg = f"Can't add a quote to Person with slack_user_id {slack_user_id} " \
+                     "because they don't exist."
+        return validation_error(error_msg)
+
+    if target_person.has_said(data.get('content')):
+        error_msg = f"The Quote content provided can't be added because it already exists " \
+                     "for this Person."
+        return validation_error(error_msg)
+
+    new_quote = Quote()
+    new_quote.deserialize(data)
+    db.session.add(new_quote)
+    db.session.commit()
+    db.session.refresh(new_quote)
+
+    response = jsonify(new_quote.serialize())
     response.status_code = 201
 
     return response

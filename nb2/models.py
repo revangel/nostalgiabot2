@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from nb2 import db
 
 
@@ -21,7 +23,7 @@ class Person(db.Model):
     editable_fields = ['slack_user_id', 'first_name', 'last_name']
 
     def __repr__(self):
-        return f"<Person: {self.slack_user_id} |  Name: {self.first_name} | Id: {self.id}>"
+        return f"<Person: {self.slack_user_id} | Name: {self.first_name} | Id: {self.id}>"
 
     def serialize(self):
         return {
@@ -40,6 +42,19 @@ class Person(db.Model):
             if field in data:
                 setattr(self, field, data[field])
 
+    def has_said(self, quote:str) -> bool:
+        """
+        Check if quote already exists in Nostalgiabot's memory for this Person.
+
+        Args:
+            quote: a string representing something this Person said.
+
+        Returns:
+            True if a Quote record in the db for this Person has the same content
+            as quote. False otherwise
+        """
+        return any(q for q in self.quotes if q.content.lower()==quote.lower())
+
 
 class Quote(db.Model):
     """
@@ -55,5 +70,25 @@ class Quote(db.Model):
     )
     created = db.Column(db.DateTime, nullable=False)
 
+    required_fields = ['slack_user_id', 'content']
+    editable_fields = ['content']
+
     def __repr__(self):
         return f"<Quote: {self.content} | Id: {self.id}>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'content': self.content,
+            'person_id': self.person_id,
+            'created': self.created,
+        }
+
+    def deserialize(self, data):
+        person_id = Person.query.filter(Person.slack_user_id==data['slack_user_id']) \
+                    .one() \
+                    .id
+        setattr(self, 'content', data['content'])
+        setattr(self, 'person_id', person_id)
+        setattr(self, 'created', datetime.now())
+
