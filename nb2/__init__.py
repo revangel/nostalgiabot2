@@ -1,4 +1,5 @@
 import os
+import logging
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -21,11 +22,15 @@ def create_app(config=DevelopmentConfig):
     app = Flask(__name__, instance_relative_config=True)
 
     # TODO:
-    # Find a way to set this more dynamically
+    # Find a way to set these more dynamically
     app.config.from_object(config)
+    app.logger.setLevel(logging.INFO)
 
     db.init_app(app)
     migrate.init_app(app, db)
+
+    from nb2 import commands
+    app.register_blueprint(commands.bp)
 
     from nb2 import api
     app.register_blueprint(api.bp)
