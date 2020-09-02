@@ -58,7 +58,7 @@ def create_quote():
     data = request.get_json() or {}
     slack_user_id = data.get('slack_user_id')
 
-    target_person = Person.query.filter(Person.slack_user_id==slack_user_id).one()
+    target_person = Person.query.filter(Person.slack_user_id==slack_user_id).one_or_none()
 
     if not target_person:
         error_msg = f"Can't add a quote to Person with slack_user_id {slack_user_id} " \
