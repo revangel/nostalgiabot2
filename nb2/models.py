@@ -42,6 +42,20 @@ class Person(db.Model):
             if field in data:
                 setattr(self, field, data[field])
 
+    def has_said(self, quote:str) -> bool:
+        """
+        Check if quote already exists in Nostalgiabot's memory for this Person.
+
+        Args:
+            quote: a string representing something this Person said.
+
+        Returns:
+            True if a Quote record in the db for this Person has the same content
+            as quote. False otherwise
+        """
+        return any(q for q in self.quotes if q.content.lower()==quote.lower())
+
+
 class Quote(db.Model):
     """
     Represents something a Person has said;

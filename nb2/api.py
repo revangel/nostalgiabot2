@@ -58,13 +58,19 @@ def create_quote():
     data = request.get_json() or {}
     slack_user_id = data.get('slack_user_id')
 
+    target_person = Person.query.filter(Person.slack_user_id==slack_user_id).one()
+
+    if not target_person:
+        error_msg = f"Can't add a quote to Person with slack_user_id {slack_user_id} " \
+                     "because they don't exist."
+        return validation_error(error_msg)
+
     required_field_errors = Validators.validate_required_fields_are_provided(Quote, data)
     if required_field_errors:
         return required_field_errors
 
-    if not Person.query.filter(Person.slack_user_id == slack_user_id).all():
-        error_msg = f"Can't add a quote to Person with slack_user_id {slack_user_id} " \
-                     "because they don't exist."
+    if target_person.has_said(data.get('content')):
+        error_msg = f"The Quote content provided already exists for this Person."
         return validation_error(error_msg)
 
     new_quote = Quote()
