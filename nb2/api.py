@@ -70,7 +70,8 @@ def create_quote():
         return required_field_errors
 
     if target_person.has_said(data.get('content')):
-        error_msg = f"The Quote content provided already exists for this Person."
+        error_msg = f"The Quote content provided can't be added because it already exists " \
+                     "for this Person."
         return validation_error(error_msg)
 
     new_quote = Quote()

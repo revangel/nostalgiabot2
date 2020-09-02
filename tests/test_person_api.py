@@ -141,7 +141,7 @@ def test_cannot_create_person_with_duplicate_slack_user_id(field, client, sessio
 def test_create_quote(client, session, prepared_user):
     data = {
         "slack_user_id": prepared_user.slack_user_id,
-        "content": "",
+        "content": "Make Bikram productive",
     }
 
     response = client.post(
@@ -158,3 +158,29 @@ def test_create_quote(client, session, prepared_user):
     assert isinstance(response_json.get('id'), int)
     assert isinstance(response_json.get('content'), str)
     assert isinstance(created_date, datetime)
+
+def test_cannot_create_duplicate_quote(client, session, prepared_user):
+    data = {
+        "slack_user_id": prepared_user.slack_user_id,
+        "content": "the more poking the better"
+    }
+
+    response = client.post(
+        url_for('api.create_quote'),
+        data=json.dumps(data),
+        content_type='application/json'
+    )
+
+    # Intentional duplicate call to test validation against
+    # duplicate quotes
+    response = client.post(
+        url_for('api.create_quote'),
+        data=json.dumps(data),
+        content_type='application/json'
+    )
+
+    assert response.status_code == 400
+
+    expected_error_msg = f"The Quote content provided can't be added " \
+                          "because it already exists for this Person."
+    assert response.json.get("message") == expected_error_msg
