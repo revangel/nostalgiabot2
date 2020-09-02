@@ -1,17 +1,9 @@
+from datetime import datetime
+
 from nb2 import db
 
 
-class DeserializableModelMixin:
-    def deserialize(self, data):
-        """
-        Update the editable fields on a person with `data`.
-        """
-        # Should this be for all fields?
-        for field in self.editable_fields:
-            if field in data:
-                setattr(self, field, data[field])
-
-class Person(db.Model, DeserializableModelMixin):
+class Person(db.Model):
     """
     Represents someone that Nostalgiabot has quotes for;
     usually an SDE employee.
@@ -42,8 +34,15 @@ class Person(db.Model, DeserializableModelMixin):
             'quotes': [quote.content for quote in self.quotes]
         }
 
+    def deserialize(self, data):
+        """
+        Update the editable fields on a person with `data`.
+        """
+        for field in self.editable_fields:
+            if field in data:
+                setattr(self, field, data[field])
 
-class Quote(db.Model, DeserializableModelMixin):
+class Quote(db.Model):
     """
     Represents something a Person has said;
     usually something funny.
@@ -57,8 +56,24 @@ class Quote(db.Model, DeserializableModelMixin):
     )
     created = db.Column(db.DateTime, nullable=False)
 
-    required_fields = ['person_id', 'content']
+    required_fields = ['slack_user_id', 'content']
     editable_fields = ['content']
 
     def __repr__(self):
         return f"<Quote: {self.content} | Id: {self.id}>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'content': self.content,
+            'person_id': self.person_id,
+            'created': self.created,
+        }
+
+    def deserialize(self, data):
+        person_id = Person.query.filter(Person.slack_user_id==data['slack_user_id']).one().id
+        setattr(self, 'content', data['content'])
+        import ipdb; ipdb.set_trace()
+        setattr(self, 'person_id', person_id)
+        setattr(self, 'created', datetime.now())
+

@@ -1,4 +1,3 @@
-from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from nb2 import db
@@ -57,22 +56,19 @@ def create_person():
 @bp.route('/quotes', methods=['POST'])
 def create_quote():
     data = request.get_json() or {}
-    person_id = data.get('person_id')
+    slack_user_id = data.get('slack_user_id')
 
     required_field_errors = Validators.validate_required_fields_are_provided(Quote, data)
     if required_field_errors:
         return required_field_errors
 
-    import ipdb; ipdb.set_trace()
-
-    if not Person.query.filter(Person.id == person_id).all():
-        error_msg = f"Can't add a quote to Person with id {person_id} " \
+    if not Person.query.filter(Person.slack_user_id == slack_user_id).all():
+        error_msg = f"Can't add a quote to Person with slack_user_id {slack_user_id} " \
                      "because they don't exist."
         return validation_error(error_msg)
 
     new_quote = Quote()
     new_quote.deserialize(data)
-    new_quote.created = datetime.now()
     db.session.add(new_quote)
     db.session.commit()
     db.session.refresh(new_quote)
