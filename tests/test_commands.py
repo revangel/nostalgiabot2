@@ -1,6 +1,6 @@
 import pytest
 
-from nb2.commands import generate_data
+from nb2.management.commands import generate_data
 from nb2.models import Person, Quote
 
 
