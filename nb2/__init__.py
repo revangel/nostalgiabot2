@@ -29,7 +29,7 @@ def create_app(config=DevelopmentConfig):
     db.init_app(app)
     migrate.init_app(app, db)
 
-    from nb2 import commands
+    from nb2.management import commands
     app.register_blueprint(commands.bp)
 
     from nb2 import api
