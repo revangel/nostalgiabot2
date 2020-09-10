@@ -3,6 +3,9 @@ from flask_restful import abort, Api, fields, marshal, reqparse, Resource
 from sqlalchemy.exc import IntegrityError
 
 from nb2.models import Person, Quote
+from nb2.service.dtos import AddQuoteDTO
+from nb2.service.person_service import *
+from nb2.service.quote_service import *
 
 
 bp = Blueprint("api", __name__)
@@ -103,9 +106,7 @@ class PersonResource(PersonResourceBase):
     }
 
     def get(self, slack_user_id):
-        person = Person.query.filter_by(
-            slack_user_id=slack_user_id
-        ).one_or_none()
+        person = get_person_by_slack_user_id(slack_user_id)
 
         if person is None:
             abort(
@@ -158,15 +159,19 @@ class PersonListResource(PersonResourceBase):
         )
 
     def get(self):
-        people = Person.query.all()
+        people = get_all_people()
         return marshal(people, self.fields), 200
 
     def post(self):
         parsed_args = self.parser.parse_args()
         slack_user_id = parsed_args.get("slack_user_id")
+        first_name = parsed_args.get('first_name')
+        last_name = parsed_args.get('last_name')
+
+        data = CreatePersonDTO(slack_user_id, first_name, last_name)
 
         try:
-            new_person = Person.create(parsed_args)
+            new_person = create_person(data)
         except IntegrityError:
             return abort(
                 409,
@@ -237,6 +242,7 @@ class QuoteListResource(QuoteResourceBase):
     def post(self):
         parsed_args = self.parser.parse_args()
         slack_user_id = parsed_args.get("slack_user_id")
+        content = parsed_args.get('content')
 
         target_person = Person.query.filter(
             Person.slack_user_id == slack_user_id
@@ -258,7 +264,8 @@ class QuoteListResource(QuoteResourceBase):
                 ),
             )
 
-        new_quote = Quote.create(parsed_args)
+        data = AddQuoteDTO(slack_user_id, content)
+        new_quote = add_quote_to_person(data)
 
         return marshal(new_quote, self.fields), 201
 

@@ -22,22 +22,6 @@ class Person(db.Model):
     def __repr__(self):
         return f"<Person: {self.slack_user_id} | Name: {self.first_name} | Id: {self.id}>"
 
-    @staticmethod
-    def create(data):
-        """
-        Update the editable fields on a person with `data`.
-        """
-        new_person = Person()
-        new_person.slack_user_id = data['slack_user_id']
-        new_person.first_name = data['first_name']
-        new_person.last_name = data['last_name']
-
-        db.session.add(new_person)
-        db.session.commit()
-        db.session.refresh(new_person)
-
-        return new_person
-
     def has_said(self, quote:str) -> bool:
         """
         Check if quote already exists in Nostalgiabot's memory for this Person.
@@ -68,20 +52,3 @@ class Quote(db.Model):
 
     def __repr__(self):
         return f"<Quote: {self.content} | Id: {self.id}>"
-
-    @staticmethod
-    def create(data):
-        person_id = Person.query.filter(Person.slack_user_id==data['slack_user_id']) \
-                    .one() \
-                    .id
-
-        new_quote = Quote()
-        new_quote.content = data['content']
-        new_quote.person_id = person_id
-
-        db.session.add(new_quote)
-        db.session.commit()
-        db.session.refresh(new_quote)
-
-        return new_quote
-
