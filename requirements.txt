@@ -8,6 +8,7 @@ click==7.1.2
 decorator==4.4.2
 Flask==1.1.2
 Flask-Migrate==2.5.3
+Flask-RESTful==0.3.8
 Flask-SQLAlchemy==2.4.4
 idna==2.9
 idna-ssl==1.1.0
