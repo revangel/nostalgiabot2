@@ -1,12 +1,11 @@
 from flask import Blueprint
-from flask_restful import abort, Api, fields, marshal, reqparse, Resource
+from flask_restful import Api, Resource, abort, fields, marshal, reqparse
 from sqlalchemy.exc import IntegrityError
 
-from nb2.models import Person, Quote
-from nb2.service.dtos import AddQuoteDTO
-from nb2.service.person_service import *
-from nb2.service.quote_service import *
-
+from nb2.models import Person
+from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
+from nb2.service.person_service import create_person, get_all_people, get_person_by_slack_user_id
+from nb2.service.quote_service import add_quote_to_person, get_quote_from_person
 
 bp = Blueprint("api", __name__)
 api = Api(bp)
@@ -41,23 +40,23 @@ class IncludeFilterMixin:
     """
 
     def __init__(self, *args, **kwargs):
-        if not hasattr(self, 'fields'):
+        if not hasattr(self, "fields"):
             self.fields = {}
 
-        if not hasattr(self, 'parser'):
+        if not hasattr(self, "parser"):
             self.parser = reqparse.RequestParser(bundle_errors=True)
 
-        self.parser.add_argument('include', type=str, location='args')
+        self.parser.add_argument("include", type=str, location="args")
 
         self.include_fields()
         super(IncludeFilterMixin, self).__init__(*args, **kwargs)
 
     def include_fields(self):
         parsed_args = self.parser.parse_args()
-        include_fields = parsed_args['include'] or []
+        include_fields = parsed_args["include"] or []
 
         if include_fields:
-            include_fields = include_fields.split(',')
+            include_fields = include_fields.split(",")
 
         for field in include_fields:
             field_type = getattr(self, f"get_{field}_field_type", None)
@@ -100,21 +99,13 @@ class PersonResource(PersonResourceBase):
     person by a `slack_user_id`.
     """
 
-    ERRORS = {
-        "does_not_exist":
-            "Person with slack_user_id {slack_user_id} does not exist"
-    }
+    ERRORS = {"does_not_exist": "Person with slack_user_id {slack_user_id} does not exist"}
 
     def get(self, slack_user_id):
         person = get_person_by_slack_user_id(slack_user_id)
 
         if person is None:
-            abort(
-                404,
-                message=self.ERRORS["does_not_exist"].format(
-                    slack_user_id=slack_user_id
-                )
-            )
+            abort(404, message=self.ERRORS["does_not_exist"].format(slack_user_id=slack_user_id))
 
         return marshal(person, self.fields), 200
 
@@ -131,8 +122,7 @@ class PersonListResource(PersonResourceBase):
     ERRORS = {
         "slack_user_id_missing": "slack_user_id is required",
         "first_name_missing": "first_name is required",
-        "already_exists":
-            "Person with slack_user_id {slack_user_id} already exists",
+        "already_exists": "Person with slack_user_id {slack_user_id} already exists",
     }
 
     def __init__(self, *args, **kwargs):
@@ -165,8 +155,8 @@ class PersonListResource(PersonResourceBase):
     def post(self):
         parsed_args = self.parser.parse_args()
         slack_user_id = parsed_args.get("slack_user_id")
-        first_name = parsed_args.get('first_name')
-        last_name = parsed_args.get('last_name')
+        first_name = parsed_args.get("first_name")
+        last_name = parsed_args.get("last_name")
 
         data = CreatePersonDTO(slack_user_id, first_name, last_name)
 
@@ -175,9 +165,7 @@ class PersonListResource(PersonResourceBase):
         except IntegrityError:
             return abort(
                 409,
-                message=self.ERRORS.get("already_exists").format(
-                    slack_user_id=slack_user_id
-                ),
+                message=self.ERRORS.get("already_exists").format(slack_user_id=slack_user_id),
             )
 
         return marshal(new_person, self.fields), 201
@@ -201,6 +189,43 @@ class QuoteResourceBase(Resource):
         super().__init__(*args, **kwargs)
 
 
+class PersonQuoteResource(QuoteResourceBase):
+    """
+    Implements the API method for getting a quote from a Person.
+
+    The `get` method is implemented to get a Quote by it's id from a Person.
+    """
+
+    ERRORS = {
+        "person_does_not_exist": ("Person with slack_user_id {slack_user_id} " "does not exist"),
+        "quote_does_not_exist": (
+            "Quote with id {quote_id} does not exist for "
+            "person with slack_user_id {slack_user_id}"
+        ),
+    }
+
+    def get(self, slack_user_id, quote_id):
+        person = get_person_by_slack_user_id(slack_user_id)
+
+        if person is None:
+            abort(
+                404,
+                message=self.ERRORS["person_does_not_exist"].format(slack_user_id=slack_user_id),
+            )
+
+        quote = get_quote_from_person(slack_user_id, quote_id)
+
+        if quote is None:
+            abort(
+                404,
+                message=self.ERRORS["quote_does_not_exist"].format(
+                    quote_id=quote_id, slack_user_id=slack_user_id
+                ),
+            )
+
+        return marshal(quote, self.fields), 200
+
+
 class QuoteListResource(QuoteResourceBase):
     """
     Implements the API methods for operating on multiple Quotes.
@@ -218,7 +243,7 @@ class QuoteListResource(QuoteResourceBase):
         "already_exists": (
             "The Quote content provided can't be added because "
             "it already exists for this Person."
-        )
+        ),
     }
 
     def __init__(self, *args, **kwargs):
@@ -242,11 +267,9 @@ class QuoteListResource(QuoteResourceBase):
     def post(self):
         parsed_args = self.parser.parse_args()
         slack_user_id = parsed_args.get("slack_user_id")
-        content = parsed_args.get('content')
+        content = parsed_args.get("content")
 
-        target_person = Person.query.filter(
-            Person.slack_user_id == slack_user_id
-        ).one_or_none()
+        target_person = Person.query.filter(Person.slack_user_id == slack_user_id).one_or_none()
 
         if not target_person:
             return abort(
@@ -259,9 +282,7 @@ class QuoteListResource(QuoteResourceBase):
         if target_person.has_said(parsed_args.get("content")):
             return abort(
                 400,
-                message=self.ERRORS.get("already_exists").format(
-                    slack_user_id=slack_user_id
-                ),
+                message=self.ERRORS.get("already_exists").format(slack_user_id=slack_user_id),
             )
 
         data = AddQuoteDTO(slack_user_id, content)
@@ -272,4 +293,5 @@ class QuoteListResource(QuoteResourceBase):
 
 api.add_resource(PersonListResource, "/people")
 api.add_resource(PersonResource, "/people/<string:slack_user_id>")
+api.add_resource(PersonQuoteResource, "/people/<string:slack_user_id>/quotes/<string:quote_id>")
 api.add_resource(QuoteListResource, "/quotes")
