@@ -47,8 +47,16 @@ paths:
                 type: object
                 properties:
                   message:
-                    type: string
-                    example: "Missing required field(s): first_name, slack_user_id"
+                    type: object
+                    properties:
+                      slack_user_id:
+                        type: string
+                        example:
+                          "slack_user_id is required"
+                      first_name:
+                        type: string
+                        example:
+                          "first_name is required"
         '409':
           description: slack_user_id conflict
           content:
@@ -97,6 +105,124 @@ paths:
                   message:
                     type: string
                     example: "Person with slack_user_id W012A3CDE does not exist"
+
+  /people/{slack_user_id}/quotes/:
+    get:
+      summary: Get all quotes from a Person
+      parameters:
+        - in: path
+          required: true
+          name: slack_user_id
+          description: The unique ID assigned by Slack to a user
+          schema:
+            type: string
+            example: "W012A3CDE"
+      responses:
+        "200":
+          description: A list of matched Quotes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Quote'
+        "404":
+          description: The Person does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Person with slack_user_id W012A3CDE does not exist"
+
+  /people/{slack_user_id}/quotes/{quote_id}:
+    get:
+      summary: Returns a specific quote from a Person
+      parameters:
+        - in: path
+          required: true
+          name: slack_user_id
+          description: The unique ID assigned by Slack to a user
+          schema:
+            type: string
+            example: "W012A3CDE"
+        - in: path
+          name: quote_id
+          description: The unique ID of a quote said by the user
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          description: "Quote matching criteria"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "404":
+          description: Either the person or the quote does not exit
+          content:
+            application/json:
+              examples:
+                Person does not exist error:
+                  value:
+                    message: "Person with slack_user_id W012A3CDE does not exist"
+                Quote does not exist error:
+                  value:
+                    message: "Quote with id 1 does not exist for person with slack_user_id W012A3CDE"
+
+  /quotes:
+    post:
+      description: Create a new Quote for a Person
+      requestBody:
+        $ref: "#/components/requestBodies/QuotePost"
+      responses:
+        201:
+          description: Quote added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+        400:
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: object
+                    properties:
+                      slack_user_id:
+                        type: string
+                        example:
+                          "slack_user_id is required"
+                      content:
+                        type: string
+                        example:
+                          "content is required"
+        404:
+          description: Person does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Can't add a quote to Person with slack_user_id W012A3CDE because they don't exist."
+        409:
+          description: Person already said that quote
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "The Quote content provided can't be added because it already exists for this Person."
 
 components:
   schemas:
@@ -187,19 +313,15 @@ components:
           schema:
             type: object
             required:
-              - person_id
+              - slack_user_id
               - content
-              - timestamp
             properties:
-              person_id:
-                description: The primary key of a Person that owns the quote
-                type: integer
-                example: 1
+              slack_user_id:
+                description: The slack_user_id of a Person that said the quote
+                type: string
+                example: "W012A3CDE"
               content:
                 description: The quoted text that a Person said
                 type: string
                 example: "just finished dealing with poo emergency"
-              timestamp:
-                description: The time the quote was submitted to Slack
-                type: string
-                example: "1597855921.001900"
+

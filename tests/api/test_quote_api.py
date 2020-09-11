@@ -109,7 +109,7 @@ def test_cannot_create_duplicate_quote(client, session, prepared_user):
         url_for("api.quotelistresource"), data=json.dumps(data), content_type="application/json"
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 409
 
     expected_error_msg = (
         "The Quote content provided can't be added because it already exists for this Person."
