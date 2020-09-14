@@ -1,13 +1,26 @@
 import pytest
-
 from mixer.backend.flask import mixer
 
+from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO
-from nb2.service.exceptions import EmptyRequiredFieldException, PersonDoesNotExistException, QuoteAlreadyExistsException
-from nb2.service.quote_service import *
+from nb2.service.exceptions import (
+    EmptyRequiredFieldException,
+    PersonDoesNotExistException,
+    QuoteAlreadyExistsException,
+)
+from nb2.service.quote_service import add_quote_to_person, get_quote_from_person
 
 
-def test_quote_service(client, session):
+def test_get_quote_from_person(client, session):
+    person = mixer.blend(Person)
+    expected_quote = mixer.blend(Quote, person=person)
+
+    actual_quote = get_quote_from_person(person.slack_user_id, expected_quote.id)
+
+    assert actual_quote == expected_quote
+
+
+def test_add_quote_to_person(client, session):
     person = mixer.blend(Person)
 
     assert len(person.quotes) == 0
@@ -42,6 +55,7 @@ def test_quote_service_raises_exception_if_quote_content_already_exists(client, 
     with pytest.raises(QuoteAlreadyExistsException):
         data = AddQuoteDTO(person.slack_user_id, quote.content)
         add_quote_to_person(data)
+
 
 def test_quote_service_raises_exception_if_required_fields_are_empty(client, session):
     data = AddQuoteDTO(None, None)

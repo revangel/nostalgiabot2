@@ -1,7 +1,30 @@
 from nb2 import db
 from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO
-from nb2.service.exceptions import EmptyRequiredFieldException, PersonDoesNotExistException, QuoteAlreadyExistsException
+from nb2.service.exceptions import (
+    EmptyRequiredFieldException,
+    PersonDoesNotExistException,
+    QuoteAlreadyExistsException,
+)
+
+
+def get_quote_from_person(slack_user_id: str, quote_id: int):
+    """
+    Get a Quote from a Person.
+
+    Required Args:
+        slack_user_id: The unique Slack identifier for a Person.
+        quote_id: The primary key of a Quote.
+
+    Returns:
+        A single Quote object if it exists, else None.
+    """
+    return (
+        Quote.query.filter(Quote.id == quote_id)
+        .join(Person)
+        .filter(Person.slack_user_id == slack_user_id)
+        .one_or_none()
+    )
 
 
 def add_quote_to_person(data: AddQuoteDTO):
