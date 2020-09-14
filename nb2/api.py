@@ -5,7 +5,11 @@ from sqlalchemy.exc import IntegrityError
 from nb2.models import Person
 from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
 from nb2.service.person_service import create_person, get_all_people, get_person_by_slack_user_id
-from nb2.service.quote_service import add_quote_to_person, get_quote_from_person
+from nb2.service.quote_service import (
+    add_quote_to_person,
+    get_all_quotes_from_person,
+    get_quote_from_person,
+)
 
 bp = Blueprint("api", __name__)
 api = Api(bp)
@@ -226,6 +230,31 @@ class PersonQuoteResource(QuoteResourceBase):
         return marshal(quote, self.fields), 200
 
 
+class PersonQuoteListResource(QuoteResourceBase):
+    """
+    Implements the API method for getting all quotes from a Person.
+
+    The `get` method is implemented to get all Quotes from a Person.
+    """
+
+    ERRORS = {
+        "person_does_not_exist": "Person with slack_user_id {slack_user_id} does not exist",
+    }
+
+    def get(self, slack_user_id):
+        person = get_person_by_slack_user_id(slack_user_id)
+
+        if person is None:
+            abort(
+                404,
+                message=self.ERRORS["person_does_not_exist"].format(slack_user_id=slack_user_id),
+            )
+
+        quotes = get_all_quotes_from_person(slack_user_id)
+
+        return marshal(quotes, self.fields), 200
+
+
 class QuoteListResource(QuoteResourceBase):
     """
     Implements the API methods for operating on multiple Quotes.
@@ -293,5 +322,6 @@ class QuoteListResource(QuoteResourceBase):
 
 api.add_resource(PersonListResource, "/people")
 api.add_resource(PersonResource, "/people/<string:slack_user_id>")
+api.add_resource(PersonQuoteListResource, "/people/<string:slack_user_id>/quotes")
 api.add_resource(PersonQuoteResource, "/people/<string:slack_user_id>/quotes/<string:quote_id>")
 api.add_resource(QuoteListResource, "/quotes")

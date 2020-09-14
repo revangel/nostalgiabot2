@@ -27,6 +27,19 @@ def get_quote_from_person(slack_user_id: str, quote_id: int):
     )
 
 
+def get_all_quotes_from_person(slack_user_id: str):
+    """
+    Get all Quote from a Person.
+
+    Required Args:
+        slack_user_id: The unique Slack identifier for a Person.
+
+    Returns:
+        A list of Quote objects.
+    """
+    return Quote.query.join(Person).filter(Person.slack_user_id == slack_user_id).all()
+
+
 def add_quote_to_person(data: AddQuoteDTO):
     """
     Add a Quote to a Person's quotes.
