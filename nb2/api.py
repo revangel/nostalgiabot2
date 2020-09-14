@@ -273,7 +273,7 @@ class QuoteListResource(QuoteResourceBase):
 
         if not target_person:
             return abort(
-                400,
+                404,
                 message=self.ERRORS.get("person_does_not_exist").format(
                     slack_user_id=slack_user_id
                 ),
@@ -281,7 +281,7 @@ class QuoteListResource(QuoteResourceBase):
 
         if target_person.has_said(parsed_args.get("content")):
             return abort(
-                400,
+                409,
                 message=self.ERRORS.get("already_exists").format(slack_user_id=slack_user_id),
             )
 
