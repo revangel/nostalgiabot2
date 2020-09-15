@@ -15,5 +15,3 @@ def handle_app_mention(payload):
     channel = event.get("channel")
 
     bot.send_text("OH HI!", channel)
-
-
