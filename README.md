@@ -7,6 +7,12 @@
 Nostalgiabot II is the sequel to Nostalgiabot, originally written by Martin Petkov.
 
 ## Development Setup
+### Dependencies
+Run the following to install all the Python dev dependencies:
+```
+pip install -r requirements/dev
+```
+
 ### Environment & Configs
 Create a new .env file in the root directory of the project using .env.example as a template
    ```
@@ -16,6 +22,13 @@ Create a new .env file in the root directory of the project using .env.example a
    *Do not commit this new file as it will contain secret keys!*
 
 Set `FLASK_ENVIRONMENT` to `development`. This enables the debugger and hot reloading.
+
+
+### Precommit & Linting
+We use [pre-commit](https://pre-commit.com/) to manage and run linters and autoformatting on a git commit hook. To initialize pre-commit hooks, run the following:
+```
+pre-commit install
+```
 
 ### Database
 
