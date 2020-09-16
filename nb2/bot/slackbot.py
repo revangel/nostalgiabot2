@@ -16,3 +16,15 @@ class SlackBot:
 
     def send_blocks(self, blocks, channel):
         self.web_client.chat_postMessage(blocks=blocks, channel=channel)
+
+    def get_user_info(self, slack_user_id: str):
+        """
+        Return Slack's representation of a user with id slack_user_id.
+
+        Args:
+            slack_user_id: string representing the Person's primary Slack id.
+
+        Returns:
+            {} containing Slack user information.
+        """
+        return self.web_client.users_info(user=slack_user_id).data["user"]
