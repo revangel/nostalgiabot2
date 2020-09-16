@@ -12,13 +12,13 @@ repos:
     hooks:
     - id: trailing-whitespace
       exclude: migrations/
--   repo: https://gitlab.com/pycqa/flake8
-    rev: '3.8.3'
-    hooks:
-    -   id: flake8
-        exclude: migrations/
 -   repo: https://github.com/ambv/black
     rev: stable
     hooks:
     - id: black
       language_version: python3.6
+-   repo: https://gitlab.com/pycqa/flake8
+    rev: '3.8.3'
+    hooks:
+    -   id: flake8
+        exclude: migrations/

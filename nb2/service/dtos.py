@@ -28,11 +28,12 @@ class CreatePersonDTO(BaseDTO):
         slack_user_id: string representing the Person's primary Slack id.
         first_name: string representing Person's first name.
     """
-    REQUIRED_FIELDS = ['slack_user_id', 'first_name']
+
+    REQUIRED_FIELDS = ["slack_user_id", "first_name"]
 
     slack_user_id: str
     first_name: str
-    last_name: str
+    last_name: str = None
 
 
 @dataclass
@@ -44,5 +45,6 @@ class AddQuoteDTO(BaseDTO):
         slack_user_id: string representing the Person's primary Slack id.
         content: string representing a Quote the Person has said.
     """
+
     slack_user_id: str
     content: str

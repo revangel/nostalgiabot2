@@ -13,5 +13,4 @@ def handle_app_mention(payload):
     """
     event = payload.get("event", {})
     channel = event.get("channel")
-
-    bot.send_text("OH HI!", channel)
+    bot.run_action(payload, channel)
