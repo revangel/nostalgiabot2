@@ -76,6 +76,37 @@ def test_get_quote_raises_404_if_quote_does_not_exist(client, session, prepared_
     assert response_json.get("message") == expected_error
 
 
+@pytest.mark.parametrize("num_quotes", [0, 1, 5])
+def test_get_all_quotes_from_person(num_quotes, client, session, prepared_user):
+    quotes = mixer.cycle(num_quotes).blend(Quote, person=prepared_user)
+    expected_data = [get_serialized_quote(quote) for quote in quotes]
+
+    response = client.get(
+        url_for(
+            "api.personquotelistresource",
+            slack_user_id=prepared_user.slack_user_id,
+        )
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert len(response_json) == num_quotes
+    assert response_json == expected_data
+
+
+def test_get_all_quotes_raises_404_if_person_does_not_exist(client, session):
+    slack_user_id = "foo"
+    expected_error = f"Person with slack_user_id {slack_user_id} does not exist"
+
+    response = client.get(
+        url_for("api.personquotelistresource", slack_user_id=slack_user_id, quote_id=1)
+    )
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
 def test_create_quote(client, session, prepared_user):
     data = {
         "slack_user_id": prepared_user.slack_user_id,

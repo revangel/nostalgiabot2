@@ -8,7 +8,11 @@ from nb2.service.exceptions import (
     PersonDoesNotExistException,
     QuoteAlreadyExistsException,
 )
-from nb2.service.quote_service import add_quote_to_person, get_quote_from_person
+from nb2.service.quote_service import (
+    add_quote_to_person,
+    get_all_quotes_from_person,
+    get_quote_from_person,
+)
 
 
 def test_get_quote_from_person(client, session):
@@ -18,6 +22,16 @@ def test_get_quote_from_person(client, session):
     actual_quote = get_quote_from_person(person.slack_user_id, expected_quote.id)
 
     assert actual_quote == expected_quote
+
+
+@pytest.mark.parametrize("num_quotes", [0, 1, 5])
+def test_get_all_quotes_from_person(num_quotes, client, session):
+    person = mixer.blend(Person)
+    expected_quotes = mixer.cycle(num_quotes).blend(Quote, person=person)
+
+    actual_quotes = get_all_quotes_from_person(person.slack_user_id)
+
+    assert actual_quotes == expected_quotes
 
 
 def test_add_quote_to_person(client, session):
