@@ -6,10 +6,16 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
 from config import DevelopmentConfig
-from nb2.bot.slackbot import SlackBot
 
 db = SQLAlchemy()
 migrate = Migrate()
+
+# This import needs to come after db since the import chain
+# in SlackBot eventually imports Person, which needs an
+# instantiated db.
+# TODO: Find a better way to handle circular imports?
+from nb2.bot.slackbot import SlackBot  # noqa
+
 bot = SlackBot()
 
 
