@@ -6,7 +6,28 @@
 
 Nostalgiabot II is the sequel to Nostalgiabot, originally written by Martin Petkov.
 
+## Tech Stack
+NB2 is a simple Flask app. You should be familiar with these technologies:
+
+- [Python](https://www.python.org/), specifically 3.6
+- [Flask](https://flask.palletsprojects.com/en/1.1.x/)
+- [Flask-RESTful](https://flask-restful.readthedocs.io/en/latest/)
+
 ## Development Setup
+
+### Clone the repository
+
+```
+git clone git@github.com:revangel/nostalgiabot2.git
+```
+
+### Setup virtual environment
+
+```
+mkvirtualenv nb2
+workon nb2
+```
+
 ### Dependencies
 Run the following to install all the Python dev dependencies:
 ```
@@ -34,8 +55,15 @@ pre-commit install
 
 To initialize the SQLite database, run:
 ```
-flask db update
+flask db upgrade
 ```
+
+### Run the bot
+
+```
+flask run
+```
+You should now see a url in your console pointing you to where NB2 is running
 
 ## Steps to Create Slack Bot
 
@@ -54,3 +82,4 @@ flask db update
 7. The bot should be ready to use and can now access the running Flask server.
 
 *Note ngrok will randomly assign a new url each time it is run, so step 5 may need to be repeated each time ngrok is restarted.*
+
