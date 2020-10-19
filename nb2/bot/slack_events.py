@@ -1,7 +1,17 @@
+from flask import Blueprint
+from flask import current_app as app
+from slackeventsapi import SlackEventAdapter
+
 from nb2 import bot
 
+bp = Blueprint("slack_event_adapter", __name__)
 
-@bot.event_adapter.on("app_mention")
+slack_event_adapter = SlackEventAdapter(
+    app.config.get("SLACK_SIGNING_SECRET"), app.config.get("SLACK_EVENTS_URL"), app
+)
+
+
+@slack_event_adapter.on("app_mention")
 def handle_app_mention(payload):
     """
     A Slackbot event handler that is intended to be mapped to the

@@ -2,7 +2,6 @@ import re
 from collections import namedtuple
 
 from slack import WebClient
-from slackeventsapi import SlackEventAdapter
 
 from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
 from nb2.service.person_service import create_person, get_person_by_slack_user_id
@@ -26,12 +25,10 @@ class SlackBot:
 
     def __init__(self):
         self.web_client = None
-        self.event_adapter = None
         self.slack_user_id = None
 
-    def init_app(self, token, signing_secret, event_url, app):
+    def init_app(self, token):
         self.web_client = WebClient(token=token)
-        self.event_adapter = SlackEventAdapter(signing_secret, event_url, app)
 
     def _init_bot_slack_user_id(self):
         """
@@ -61,6 +58,9 @@ class SlackBot:
         """
         command = payload.get("event").get("text")
 
+        if self.is_hello(command):
+            self.send_text(self.hello().message, channel)
+
         if self.is_remember_action(command):
             target_slack_user_ids = [
                 id
@@ -83,6 +83,15 @@ class SlackBot:
     #############################
     # Actions
     #############################
+
+    def hello(self):
+        """
+        Say hello!
+
+        Returns:
+            "Hello!"
+        """
+        return self.Result(ok=True, message="Hello!")
 
     def remember(self, target_slack_user_id: str, quote: str):
         """
@@ -117,6 +126,28 @@ class SlackBot:
     #############################
     # Action matching functions
     #############################
+
+    def is_hello(self, command: str) -> bool:
+        """
+        Return True if the command string is a greeting.
+
+        The valid form for a hello is:
+        "<@NB_user_id> <greeting>"
+
+        where <greeting> is a word in valid_greetings.
+        """
+        valid_greetings = ["hello", "greetings", "salutations", "howdy"]
+        content = [token for token in command.split()]
+
+        if len(content) > 2:
+            return False
+
+        cleaned_content = [re.sub(r"\W+", "", token).lower() for token in content]
+
+        if cleaned_content[1] in valid_greetings:
+            return True
+
+        return False
 
     def is_remember_action(self, command: str) -> bool:
         """

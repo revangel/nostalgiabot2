@@ -1,7 +1,7 @@
 import pytest
 from mixer.backend.flask import mixer
 
-from nb2.bot.slackbot import SlackBot
+from nb2.bot.slack_bot import SlackBot
 from nb2.models import Person
 from nb2.service.quote_service import add_quote_to_person  # noqa (linter doesn't see use in patch)
 
