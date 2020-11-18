@@ -1,5 +1,4 @@
 import logging
-import os
 
 from flask import Flask
 from flask_migrate import Migrate
@@ -14,7 +13,7 @@ migrate = Migrate()
 # in SlackBot eventually imports Person, which needs an
 # instantiated db.
 # TODO: Find a better way to handle circular imports?
-from nb2.bot.slackbot import SlackBot  # noqa
+from nb2.bot.slack_bot import SlackBot  # noqa
 
 bot = SlackBot()
 
@@ -29,35 +28,28 @@ def create_app(config=DevelopmentConfig):
     app.config.from_object(config)
     app.logger.setLevel(logging.INFO)
 
-    db.init_app(app)
-    migrate.init_app(app, db)
+    with app.app_context():
+        db.init_app(app)
+        migrate.init_app(app, db)
 
-    from nb2.management import commands
+        from nb2 import api
+        from nb2.bot import slack_events
+        from nb2.management import commands
 
-    app.register_blueprint(commands.bp)
+        app.register_blueprint(api.bp)
+        app.register_blueprint(slack_events.bp)
+        app.register_blueprint(commands.bp)
 
-    from nb2 import api
+        bot.init_app(app.config.get("SLACK_BOT_TOKEN"))
 
-    app.register_blueprint(api.bp)
+        from nb2.models import Person, Quote
 
-    token = os.environ["SLACK_BOT_TOKEN"]
-    signing_secret = os.environ["SLACK_SIGNING_SECRET"]
-    event_url = os.environ["SLACK_EVENTS_URL"]
-    bot.init_app(token, signing_secret, event_url, app)
+        @app.shell_context_processor
+        def make_shell_context():
+            """
+            Automatically import commonly used models when starting
+            the Flask shell
+            """
+            return {"bot": bot, "db": db, "Person": Person, "Quote": Quote}
 
-    # This is somewhat of a hack so that the decorators that
-    # register slack event handlers will be run after
-    # initializing the SlackEventAdapter in the bot.
-    # from nb2.bot import slack_events
-    from nb2.bot import slack_events  # noqa
-    from nb2.models import Person, Quote
-
-    @app.shell_context_processor
-    def make_shell_context():
-        """
-        Automatically import commonly used models when starting
-        the Flask shell
-        """
-        return {"bot": bot, "db": db, "Person": Person, "Quote": Quote}
-
-    return app
+        return app

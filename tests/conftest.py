@@ -1,20 +1,14 @@
-import os
-
 import pytest
 from mixer.backend.flask import mixer
 
+from config import TestConfig
 from nb2 import create_app
 from nb2 import db as _db
-from config import TestConfig
 
 
 @pytest.fixture(scope="session")
 def app(request):
     """Test session-wide test `Flask` application."""
-    os.environ['SLACK_BOT_TOKEN'] = "x"
-    os.environ['SLACK_SIGNING_SECRET'] = "x"
-    os.environ['SLACK_EVENTS_URL'] = "/x/"
-
     app = create_app(TestConfig)
 
     return app
