@@ -1,14 +1,20 @@
 import re
 from collections import namedtuple
+from typing import List
 
 from slack import WebClient
 
 from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
-from nb2.service.person_service import create_person, get_person_by_slack_user_id
-from nb2.service.quote_service import add_quote_to_person, get_random_quote_from_person
+from nb2.service.person_service import (
+    create_person,
+    get_person_by_slack_user_id,
+    get_person_name_by_slack_user_id,
+)
+from nb2.service.quote_service import add_quote_to_person, get_random_quotes_from_person
 from nb2.service.slack_service import (
     get_quote_content_from_remember_command,
     get_user_ids_from_command,
+    mention_users,
 )
 
 
@@ -38,6 +44,19 @@ class SlackBot:
         """
         self.slack_user_id = self.fetch_bot_info().get("user_id")
 
+    def _remove_bot_user_id_reference(self, message: str, all_occurrences=False) -> str:
+        """
+        Return the result of removing the bot user id from the first token in
+        the message. If all is True, remove all references of the bot user id.
+        """
+        target_token = self.get_bot_slack_user_id()
+        regex_pattern = f"<@{target_token}>\\s*"
+        count = 0 if all_occurrences else 1
+
+        result = re.sub(regex_pattern, "", message, count=count)
+
+        return result
+
     def get_bot_slack_user_id(self) -> str:
         """
         Return this SlackBot's slack_user_id if it has one, or initialize it
@@ -56,39 +75,40 @@ class SlackBot:
             payload: dict payload sent by Slack as a response to an event.
             channel: string denoting the Slack channel where the command was issued.
         """
+        sender = payload.get("event").get("user")
         command = payload.get("event").get("text")
+        command = self._remove_bot_user_id_reference(command, all_occurrences=True)
+        slack_user_id_mentions = [id for id in get_user_ids_from_command(command)]
 
         if self.is_hello(command):
             self.send_text(self.hello().message, channel)
 
         if self.is_remember_action(command):
-            target_slack_user_ids = [
-                id
-                for id in get_user_ids_from_command(command)
-                if id != self.get_bot_slack_user_id()
-            ]
-
-            if len(target_slack_user_ids) != 1:
+            if len(slack_user_id_mentions) != 1:
                 # TODO: inappropriate amount of target users
                 return
 
-            target_slack_user_id = target_slack_user_ids[0]
+            target_slack_user_id = slack_user_id_mentions[0]
 
             content = get_quote_content_from_remember_command(command)
 
             result = self.remember(target_slack_user_id, content)
 
-            self.send_text(result.message, channel)
-        elif self.is_quote_action(command):
-            target_slack_user_ids = [
-                id
-                for id in get_user_ids_from_command(command)
-                if id != self.get_bot_slack_user_id()
-            ]
+            return self.send_text(result.message, channel)
 
-            result = self.quote(target_slack_user_ids[0])
+        if self.is_quote_action(command):
+            nostalgia_user_target = slack_user_id_mentions[0]
+            result = self.quote(nostalgia_user_target)
 
-            self.send_text(result.message, channel)
+            return self.send_text(result.message, channel)
+
+        if self.is_remind_action(command):
+            nostalgia_user_target = slack_user_id_mentions[-1]
+            slack_user_targets = slack_user_id_mentions[:-1] or [sender]
+
+            result = self.remind(nostalgia_user_target, slack_user_targets)
+
+            return self.send_text(result.message, channel)
 
     #############################
     # Actions
@@ -133,23 +153,72 @@ class SlackBot:
 
         return self.Result(ok=True, message="Memory stored!")
 
-    def quote(self, target_slack_user_id: str):
+    def _random_quote(self, nostalgia_user_target: str):
         """
-        Recall a quote from NB's memory of a Person with target_slack_user_id, if they exist.
+        Fetch a random quote from NB's memory of a Person with nostalgia_user_target, if they exist.
 
         Args:
-            target_slack_user_id: string representing slack user id for Person
-                                  to retrieve quote
+            nostalgia_user_target: string representing slack user id for Person
+                                   to retrieve quote
+
+        Returns:
+            A Quote
+        """
+        person = get_person_name_by_slack_user_id(nostalgia_user_target)
+        user_info = self.fetch_user_info(nostalgia_user_target)
+        real_name = user_info.get("real_name")
+
+        if person is None:
+            return real_name, None
+
+        quote = get_random_quotes_from_person(nostalgia_user_target)
+
+        if not quote:
+            return real_name, None
+
+        return person, quote[0]
+
+    def quote(self, nostalgia_user_target: str):
+        """
+        Recall a quote from NB's memory of a Person with nostalgia_user_target, if they exist.
+
+        Args:
+            nostalgia_user_target: string representing slack user id for Person
+                                   to retrieve quote
 
         Returns:
             A Result namedtuple.
         """
-        if not get_person_by_slack_user_id(target_slack_user_id):
-            self.Result(ok=True, message="Couldn't find user")
+        real_name, quote = self._random_quote(nostalgia_user_target)
 
-        quote = get_random_quote_from_person(target_slack_user_id)[0]
+        if quote is None:
+            return self.Result(ok=True, message=f"I don't remember {real_name}.")
 
         return self.Result(ok=True, message=quote.content)
+
+    def remind(self, nostalgia_user_target: str, slack_user_targets: List[str]):
+        """
+        Recall a quote from NB's memory of a Person with target_slack_user_id, if they exist,
+        and ping the slack_user_targets to remind them of that Person.
+
+        Args:
+            slack_user_targets: list of strings representing slack user ids to remind
+            nostalgia_user_target: string representing slack user id for Person
+                                   to retrieve quote
+
+        Returns:
+            A Result namedtuple.
+        """
+        real_name, quote = self._random_quote(nostalgia_user_target)
+
+        if quote is None:
+            return self.Result(ok=True, message=f"I don't remember {real_name}.")
+
+        message = (
+            f"{mention_users(slack_user_targets)} Do you remember this?\n\n"
+            f'"{quote.content}" - {real_name}'
+        )
+        return self.Result(ok=True, message=message)
 
     #############################
     # Action matching functions
@@ -165,17 +234,8 @@ class SlackBot:
         where <greeting> is a word in valid_greetings.
         """
         valid_greetings = ["hello", "greetings", "salutations", "howdy"]
-        content = [token for token in command.split()]
 
-        if len(content) > 2:
-            return False
-
-        cleaned_content = [re.sub(r"\W+", "", token).lower() for token in content]
-
-        if cleaned_content[1] in valid_greetings:
-            return True
-
-        return False
+        return command in valid_greetings
 
     def is_remember_action(self, command: str) -> bool:
         """
@@ -190,6 +250,9 @@ class SlackBot:
         - Only one target user is allowed.
         - Quote content (".*") must be encapsulated in double quotes.
         """
+        if not command.lower().startswith("remember"):
+            return False
+
         double_quote_indeces = [i for i in re.finditer('"', command)]
 
         if len(double_quote_indeces) != 2:
@@ -220,6 +283,9 @@ class SlackBot:
         Notes:
         - Only one target user is allowed.
         """
+        if not command.startswith("quote"):
+            return False
+
         user_ids_mentioned = get_user_ids_from_command(command)
 
         target_slack_user_ids = [
@@ -227,6 +293,23 @@ class SlackBot:
         ]
 
         return len(target_slack_user_ids) > 0
+
+    def is_remind_action(self, command: str) -> bool:
+        """
+        Return True if the command string indicates a call to NB's "remind" action.
+
+        A valid "remind" action is a command of the form:
+        '<@NB_user_id> remind (me | <@user_id_to_remind>+ ) of <@user_id_to_remember>'
+
+        Notes:
+        - <@NB_user_id> is optional; it may not be present if a command is issued
+          in a DM with the bot.
+        - Tag the sender in the response if remind is followed by "me", otherwise
+          tag  <@user_id_to_remind>
+        - Only one <@user_id_to_remember> is allowed.
+        """
+        regex_pattern = "^remind\\W+(me|(<@.*>)+)\\W+of\\W+<@.*>\\W*$"
+        return re.match(regex_pattern, command, re.I) is not None
 
     #############################
     # External Slack Methods
