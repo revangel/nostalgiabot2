@@ -25,7 +25,7 @@ class CreatePersonDTO(BaseDTO):
     Data transfer object for adding a Person to the db.
 
     Required Fields:
-        slack_user_id: string representing the Person's primary Slack id.
+        slack_user_id: String representing the unique Slack identifier for a Person.
         first_name: string representing Person's first name.
     """
 
@@ -42,7 +42,7 @@ class AddQuoteDTO(BaseDTO):
     Data transfer object for adding a Quote to a Person.
 
     Required Fields:
-        slack_user_id: string representing the Person's primary Slack id.
+        slack_user_id: String representing the unique Slack identifier for a Person.
         content: string representing a Quote the Person has said.
     """
 

@@ -20,13 +20,30 @@ def get_person_by_slack_user_id(slack_user_id: str):
     Return Person with slack_user_id if it exists.
 
     Required Args:
-        slack_user_id: string representing the Person's primary Slack id.
+        slack_user_id: String representing the unique Slack identifier for a Person.
 
     Returns:
         Person object if one exists in the db with slack_user_id
         None if no such person exists.
     """
     return Person.query.filter_by(slack_user_id=slack_user_id).one_or_none()
+
+
+def get_person_name_by_slack_user_id(slack_user_id: str):
+    """
+    Return Person's name with slack_user_id if it exists.
+
+    Required Args:
+        slack_user_id: string representing the Person's primary Slack id.
+
+    Returns:
+        If the Person with slack_user_id exists in the db return
+        their first name as a string, otherwise return None.
+    """
+    person = Person.query.filter_by(slack_user_id=slack_user_id).one_or_none()
+
+    if person is not None:
+        return person.first_name
 
 
 def create_person(data: CreatePersonDTO):
@@ -49,9 +66,7 @@ def create_person(data: CreatePersonDTO):
         )
 
     new_person = Person(
-        slack_user_id=data.slack_user_id,
-        first_name=data.first_name,
-        last_name=data.last_name
+        slack_user_id=data.slack_user_id, first_name=data.first_name, last_name=data.last_name
     )
 
     db.session.add(new_person)

@@ -2,7 +2,7 @@ import pytest
 from mixer.backend.flask import mixer
 
 from nb2.bot.slack_bot import SlackBot
-from nb2.models import Person
+from nb2.models import Person, Quote
 from nb2.service.quote_service import add_quote_to_person  # noqa (linter doesn't see use in patch)
 
 
@@ -101,6 +101,25 @@ def test_fetch_user_info(client, session, mock_bot, mocker):
     assert response.get("name") == mock_name
 
 
+@pytest.mark.parametrize(
+    "test_message, all_occurrences, expected_result",
+    (
+        ("<@bot>", False, ""),
+        ("<@bot> <@bot>", False, "<@bot>"),
+        ("<@bot> <@bot>", True, ""),
+        ("<@bot> remind me of @user", False, "remind me of @user"),
+        ("<@bot> remind me of <@bot>", False, "remind me of <@bot>"),
+        ("<@bot>   remind me of <@bot>  ", True, "remind me of "),
+    ),
+)
+def test_remove_bot_user_id_reference(mock_bot, test_message, all_occurrences, expected_result):
+    mock_bot.slack_user_id = "bot"
+
+    result = mock_bot._remove_bot_user_id_reference(test_message, all_occurrences)
+
+    assert result == expected_result
+
+
 def test_remember_creates_new_person_if_they_dont_exist(client, session, mock_bot, mocker):
     mock_slack_user_id = mixer.faker.pystr(10)
     mock_name = mixer.faker.name()
@@ -144,29 +163,106 @@ def test_remember_adds_quote_to_existing_person(client, session, mock_bot):
     assert new_person.quotes[0].content == mock_quote
 
 
+def test_remind_gets_a_random_quote_for_person(client, session, mock_bot):
+    mock_nostalgia_person = mixer.blend(Person)
+    mock_target_person = mixer.blend(Person)
+    mock_quote = mixer.blend(Quote, person=mock_nostalgia_person)
+    expected_message = (
+        f"<@{mock_target_person.slack_user_id}> Do you remember this?"
+        f'\n\n"{mock_quote.content}" - {mock_nostalgia_person.first_name}'
+    )
+
+    session.bulk_save_objects([mock_nostalgia_person, mock_target_person, mock_quote])
+    session.commit()
+
+    result = mock_bot.remind(
+        mock_nostalgia_person.slack_user_id, [mock_target_person.slack_user_id]
+    )
+
+    assert expected_message == result.message
+
+
+def test_remind_pings_multiple_targes(client, session, mock_bot):
+    mock_nostalgia_person = mixer.blend(Person)
+    mock_target_persons = mixer.cycle(3).blend(Person)
+    mock_quote = mixer.blend(Quote, person=mock_nostalgia_person)
+    target_user_ids = [target.slack_user_id for target in mock_target_persons]
+    expected_message = (
+        f"{' '.join(f'<@{user_id}>' for user_id in target_user_ids)} Do you remember this?"
+        f'\n\n"{mock_quote.content}" - {mock_nostalgia_person.first_name}'
+    )
+
+    session.bulk_save_objects([mock_nostalgia_person, *mock_target_persons, mock_quote])
+    session.commit()
+
+    result = mock_bot.remind(mock_nostalgia_person.slack_user_id, target_user_ids)
+
+    assert expected_message == result.message
+
+
+def test_remind_does_not_remember_person_that_doesnt_exist(mocker, client, session, mock_bot):
+    # this first user does not get added to the database,
+    # but is a user in slack that the database doesn't know about
+    mock_nostalgia_person = mixer.blend(Person)
+    mock_target_person = mixer.blend(Person)
+    expected_message = f"I don't remember {mock_nostalgia_person.first_name}."
+
+    session.add(mock_target_person)
+    session.commit()
+
+    # mock the return of user info lookup for the response message
+    mocker.patch.object(
+        mock_bot, "fetch_user_info", return_value={"real_name": mock_nostalgia_person.first_name}
+    )
+
+    result = mock_bot.remind(
+        mock_nostalgia_person.slack_user_id, [mock_target_person.slack_user_id]
+    )
+
+    assert expected_message == result.message
+
+
+def test_remind_does_not_remember_person_that_doesnt_have_quotes(mocker, client, session, mock_bot):
+    mock_nostalgia_person = mixer.blend(Person)
+    mock_target_person = mixer.blend(Person)
+    expected_message = f"I don't remember {mock_nostalgia_person.first_name}."
+
+    session.bulk_save_objects([mock_target_person, mock_nostalgia_person])
+    session.commit()
+
+    # mock the return of user info lookup for the response message
+    mocker.patch.object(
+        mock_bot, "fetch_user_info", return_value={"real_name": mock_nostalgia_person.first_name}
+    )
+
+    result = mock_bot.remind(
+        mock_nostalgia_person.slack_user_id, [mock_target_person.slack_user_id]
+    )
+
+    assert expected_message == result.message
+
+
 def test_is_remember_action_returns_true_on_valid_command(client, session, mock_bot):
     assert mock_bot.is_remember_action(
-        f'<@{mock_bot.slack_user_id}> remember that <@U1> said "This is a valid remember command!"'
+        'remember that <@U1> said "This is a valid remember command!"'
     )
     assert mock_bot.is_remember_action(
-        f'<@{mock_bot.slack_user_id}> REMEMBER THAT <@U1> said "This is a valid remember command!"'
+        'REMEMBER THAT <@U1> said "This is a valid remember command!"'
     )
     assert mock_bot.is_remember_action(
-        f'<@{mock_bot.slack_user_id}> remember when <@U1> said "This is a valid remember command!"'
+        'remember when <@U1> said "This is a valid remember command!"'
     )
     assert mock_bot.is_remember_action(
         'remember that <@U1> said "This is a valid remember command!"'
     )
     assert mock_bot.is_remember_action(
-        f"<@{mock_bot.slack_user_id}> remember that <@U2> said "
-        '"This is a valid remember command, <@U3>!"'
+        'remember that <@U2> said "This is a valid remember command, <@U3>!"'
     )
 
     # Technically, anything is allowed between "remember" and the target user.
     # Might not be allowed in the future?
     assert mock_bot.is_remember_action(
-        f"<@{mock_bot.slack_user_id}> remember that that guy <@U1> said "
-        '"This is a valid remember command!"'
+        'remember that that guy <@U1> said "This is a valid remember command!"'
     )
 
 
@@ -174,22 +270,47 @@ def test_is_remember_action_returns_false_when_there_are_too_many_target_users(
     client, session, mock_bot
 ):
     assert not mock_bot.is_remember_action(
-        f"<@{mock_bot.slack_user_id}> remember that <@U1> <@U2> said "
-        '"This is not a valid command, <@0>!"'
+        'remember that <@U1> <@U2> said "This is not a valid command, <@0>!"'
     )
 
 
 def test_is_remember_action_returns_false_when_single_quotes_are_used(client, session, mock_bot):
     assert not mock_bot.is_remember_action(
-        "<@12345678> remember that <@U11111111> said 'I am using single quotes.'"
+        "remember that <@U11111111> said 'I am using single quotes.'"
     )
 
 
 def test_is_remember_action_returns_false_if_there_are_no_target_users(client, session, mock_bot):
     assert not mock_bot.is_remember_action(
-        f'<@{mock_bot.slack_user_id}> remember that said "This is not a valid command, <@0>!"'
+        'remember that said "This is not a valid command, <@0>!"'
     )
     assert not mock_bot.is_remember_action(
-        f"<@{mock_bot.slack_user_id}> remember that <U1> said "
-        '"This is not a valid command, <@0>!"'
+        'remember that <U1> said "This is not a valid command, <@0>!"'
     )
+
+
+def test_is_remind_action_returns_false_if_remind_not_in_command(client, session, mock_bot):
+    assert not (mock_bot.is_remind_action("me of <U1>"))
+    assert not (mock_bot.is_remind_action("rmind me of <U1>"))
+
+
+def test_is_remind_action_returns_false_if_not_me_or_targets(client, session, mock_bot):
+    assert not (mock_bot.is_remind_action("remind you of <U1>"))
+
+
+def test_is_remind_action_returns_false_if_not_nostalgia_target(client, session, mock_bot):
+    assert not (mock_bot.is_remind_action("remind me of me"))
+
+
+def test_is_remind_action_returns_false_if_many_nostalgia_targets(client, session, mock_bot):
+    assert not (mock_bot.is_remind_action("remind me of <U1> <U2>"))
+
+
+def test_is_remind_action_returns_true_for_me_or_targets(client, session, mock_bot):
+    assert not (mock_bot.is_remind_action("remind me of <U1>"))
+
+    assert not (mock_bot.is_remind_action("remind <U1> of <U1>"))
+
+    assert not (mock_bot.is_remind_action("remind <U1> <U2> of <U3>"))
+
+    assert not (mock_bot.is_remind_action("remind <U1> me <U2> of <U3>"))

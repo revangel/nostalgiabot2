@@ -12,7 +12,7 @@ from nb2.service.quote_service import (
     add_quote_to_person,
     get_all_quotes_from_person,
     get_quote_from_person,
-    get_random_quote_from_person,
+    get_random_quotes_from_person,
 )
 
 
@@ -25,13 +25,25 @@ def test_get_quote_from_person(client, session):
     assert actual_quote == expected_quote
 
 
-def test_get_random_quote_from_person(client, session):
+@pytest.mark.parametrize("num_quotes", [0, 1, 5])
+def test_get_random_quotes_from_person(client, session, num_quotes):
     person = mixer.blend(Person)
-    expected_quote = mixer.blend(Quote, person=person)
+    expected_quotes = mixer.cycle().blend(Quote, person=person)
 
-    random_quote = get_random_quote_from_person(person.slack_user_id)[0]
+    random_quotes = get_random_quotes_from_person(person.slack_user_id, num_quotes)
 
-    assert random_quote == expected_quote
+    assert set(random_quotes).issubset(expected_quotes)
+    assert len(random_quotes) == num_quotes
+
+
+def test_get_random_quotes_from_person_defaults_to_one(client, session):
+    person = mixer.blend(Person)
+    expected_quotes = mixer.cycle().blend(Quote, person=person)
+
+    random_quotes = get_random_quotes_from_person(person.slack_user_id)
+
+    assert set(random_quotes).issubset(expected_quotes)
+    assert len(random_quotes) == 1
 
 
 @pytest.mark.parametrize("num_quotes", [0, 1, 5])

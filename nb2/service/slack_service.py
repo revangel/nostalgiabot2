@@ -23,6 +23,24 @@ def get_user_ids_from_command(command: str) -> [str]:
     return [user_id.group() for user_id in re.finditer(slack_user_id_pattern, command)]
 
 
+def mention_users(slack_user_ids: [str]) -> [str]:
+    """
+    Add the required tokens to each slack_user_id so that the corresponding users
+    will be pinged in a slack message.
+
+    e.g.
+    ["u1", "u2"] -> "<@u1> <@u2>"
+
+    Args:
+        - slack_user_ids: list of strings representing slack user ids.
+
+    Returns:
+        A string that can be added to a slack message to ping users.
+    """
+
+    return " ".join([f"<@{user_id}>" for user_id in slack_user_ids])
+
+
 def get_quote_content_from_remember_command(command: str) -> str:
     """
     Parse a command string invoking a "remember" Action and return the content for the

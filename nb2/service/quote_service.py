@@ -1,3 +1,5 @@
+from typing import List
+
 from sqlalchemy.sql.expression import func
 
 from nb2 import db
@@ -15,7 +17,7 @@ def get_quote_from_person(slack_user_id: str, quote_id: int):
     Get a Quote from a Person.
 
     Required Args:
-        slack_user_id: The unique Slack identifier for a Person.
+        slack_user_id: String representing the unique Slack identifier for a Person.
         quote_id: The primary key of a Quote.
 
     Returns:
@@ -29,12 +31,12 @@ def get_quote_from_person(slack_user_id: str, quote_id: int):
     )
 
 
-def get_random_quote_from_person(slack_user_id: str, num_quotes: int = 1):
+def get_random_quotes_from_person(slack_user_id: str, num_quotes: int = 1) -> List[Quote]:
     """
-    Get a <num_quotes> Quote(s) from a Person.
+    Get <num_quotes> random Quote(s) from a Person.
 
     Required Args:
-        slack_user_id: The unique Slack identifier for a Person.
+        slack_user_id: String representing the unique Slack identifier for a Person.
         num_quotes: The number of random quotes to receive (defaults to 1).
 
     Returns:
@@ -44,7 +46,7 @@ def get_random_quote_from_person(slack_user_id: str, num_quotes: int = 1):
         Quote.query.order_by(func.random())
         .join(Person)
         .filter(Person.slack_user_id == slack_user_id)
-        .limit(1)
+        .limit(num_quotes)
         .all()
     )
 
@@ -54,7 +56,7 @@ def get_all_quotes_from_person(slack_user_id: str):
     Get all Quote from a Person.
 
     Required Args:
-        slack_user_id: The unique Slack identifier for a Person.
+        slack_user_id: String representing the unique Slack identifier for a Person.
 
     Returns:
         A list of Quote objects.
