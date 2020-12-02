@@ -5,7 +5,7 @@ from slack import WebClient
 
 from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
 from nb2.service.person_service import create_person, get_person_by_slack_user_id
-from nb2.service.quote_service import add_quote_to_person
+from nb2.service.quote_service import add_quote_to_person, get_random_quote_from_person
 from nb2.service.slack_service import (
     get_quote_content_from_remember_command,
     get_user_ids_from_command,
@@ -79,6 +79,16 @@ class SlackBot:
             result = self.remember(target_slack_user_id, content)
 
             self.send_text(result.message, channel)
+        elif self.is_quote_action(command):
+            target_slack_user_ids = [
+                id
+                for id in get_user_ids_from_command(command)
+                if id != self.get_bot_slack_user_id()
+            ]
+
+            result = self.quote(target_slack_user_ids[0])
+
+            self.send_text(result.message, channel)
 
     #############################
     # Actions
@@ -122,6 +132,24 @@ class SlackBot:
         add_quote_to_person(add_quote_dto)
 
         return self.Result(ok=True, message="Memory stored!")
+
+    def quote(self, target_slack_user_id: str):
+        """
+        Recall a quote from NB's memory of a Person with target_slack_user_id, if they exist.
+
+        Args:
+            target_slack_user_id: string representing slack user id for Person
+                                  to retrieve quote
+
+        Returns:
+            A Result namedtuple.
+        """
+        if not get_person_by_slack_user_id(target_slack_user_id):
+            self.Result(ok=True, message="Couldn't find user")
+
+        quote = get_random_quote_from_person(target_slack_user_id)[0]
+
+        return self.Result(ok=True, message=quote.content)
 
     #############################
     # Action matching functions
@@ -181,6 +209,24 @@ class SlackBot:
             return False
 
         return True
+
+    def is_quote_action(self, command: str) -> bool:
+        """
+        Return True if the command string indicates a call to NB's "quote" action.
+
+        A valid "quote" action is a command of the form:
+        'quote <@NB_user_id>'
+
+        Notes:
+        - Only one target user is allowed.
+        """
+        user_ids_mentioned = get_user_ids_from_command(command)
+
+        target_slack_user_ids = [
+            user_id for user_id in user_ids_mentioned if user_id != self.get_bot_slack_user_id()
+        ]
+
+        return len(target_slack_user_ids) > 0
 
     #############################
     # External Slack Methods

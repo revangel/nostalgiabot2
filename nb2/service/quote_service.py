@@ -1,3 +1,5 @@
+from sqlalchemy.sql.expression import func
+
 from nb2 import db
 from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO
@@ -24,6 +26,26 @@ def get_quote_from_person(slack_user_id: str, quote_id: int):
         .join(Person)
         .filter(Person.slack_user_id == slack_user_id)
         .one_or_none()
+    )
+
+
+def get_random_quote_from_person(slack_user_id: str, num_quotes: int = 1):
+    """
+    Get a <num_quotes> Quote(s) from a Person.
+
+    Required Args:
+        slack_user_id: The unique Slack identifier for a Person.
+        num_quotes: The number of random quotes to receive (defaults to 1).
+
+    Returns:
+        A list of random Quote objects if it exists, else None.
+    """
+    return (
+        Quote.query.order_by(func.random())
+        .join(Person)
+        .filter(Person.slack_user_id == slack_user_id)
+        .limit(1)
+        .all()
     )
 
 
