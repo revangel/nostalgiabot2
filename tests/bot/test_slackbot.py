@@ -242,6 +242,41 @@ def test_remind_does_not_remember_person_that_doesnt_have_quotes(mocker, client,
     assert expected_message == result.message
 
 
+def test_random_responds_when_no_users_in_system(client, session, mock_bot):
+    expected_message = "No memories to remember"
+
+    result = mock_bot.random()
+
+    assert expected_message == result.message
+
+
+def test_random_responds_when_no_quotes_in_system(client, session, mock_bot):
+    mock_person = mixer.blend(Person)
+    expected_message = "No memories to remember"
+
+    session.add(mock_person)
+    session.commit()
+
+    result = mock_bot.random()
+
+    assert expected_message == result.message
+
+
+def test_random_responds_with_random_quote(client, session, mock_bot):
+    mock_person = mixer.blend(Person)
+    mock_quotes = mixer.cycle().blend(Quote, person=mock_person)
+    quote_contents = [quote.content for quote in mock_quotes]
+
+    session.bulk_save_objects([mock_person, *mock_quotes])
+    session.commit()
+
+    result = mock_bot.random()
+
+    result_quote, result_user = result.message.replace('"', "").split(" - ")
+    assert result_quote in quote_contents
+    assert result_user == mock_person.first_name
+
+
 def test_is_remember_action_returns_true_on_valid_command(client, session, mock_bot):
     assert mock_bot.is_remember_action(
         'remember that <@U1> said "This is a valid remember command!"'
@@ -308,9 +343,11 @@ def test_is_remind_action_returns_false_if_many_nostalgia_targets(client, sessio
 
 def test_is_remind_action_returns_true_for_me_or_targets(client, session, mock_bot):
     assert not (mock_bot.is_remind_action("remind me of <U1>"))
-
     assert not (mock_bot.is_remind_action("remind <U1> of <U1>"))
-
     assert not (mock_bot.is_remind_action("remind <U1> <U2> of <U3>"))
-
     assert not (mock_bot.is_remind_action("remind <U1> me <U2> of <U3>"))
+
+
+def test_is_random_action_returns_true_on_valid_command(client, session, mock_bot):
+    assert mock_bot.is_random_action("random quote")
+    assert mock_bot.is_random_action("Random    quote")

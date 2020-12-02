@@ -9,6 +9,7 @@ from nb2.service.person_service import (
     create_person,
     get_person_by_slack_user_id,
     get_person_name_by_slack_user_id,
+    get_random_person,
 )
 from nb2.service.quote_service import add_quote_to_person, get_random_quotes_from_person
 from nb2.service.slack_service import (
@@ -110,6 +111,11 @@ class SlackBot:
 
             return self.send_text(result.message, channel)
 
+        if self.is_random_action(command):
+            result = self.random()
+
+            return self.send_text(result.message, channel)
+
     #############################
     # Actions
     #############################
@@ -153,16 +159,16 @@ class SlackBot:
 
         return self.Result(ok=True, message="Memory stored!")
 
-    def _random_quote(self, nostalgia_user_target: str):
+    def _random_quote(self, nostalgia_user_target):
         """
         Fetch a random quote from NB's memory of a Person with nostalgia_user_target, if they exist.
 
         Args:
             nostalgia_user_target: string representing slack user id for Person
-                                   to retrieve quote
+                                   to retrieve quote.
 
         Returns:
-            A Quote
+            A tuple with a person's name and a Quote (or None if no quotes were found)
         """
         person = get_person_name_by_slack_user_id(nostalgia_user_target)
         user_info = self.fetch_user_info(nostalgia_user_target)
@@ -218,6 +224,26 @@ class SlackBot:
             f"{mention_users(slack_user_targets)} Do you remember this?\n\n"
             f'"{quote.content}" - {real_name}'
         )
+        return self.Result(ok=True, message=message)
+
+    def random(self):
+        """
+        Recall a random quote from NB's memory.
+
+        Returns:
+            A Result namedtuple.
+        """
+        person = get_random_person()
+
+        if person is None:
+            return self.Result(ok=True, message="No memories to remember")
+
+        real_name, quote = self._random_quote(person)
+
+        if quote is None:
+            return self.Result(ok=True, message="No memories to remember")
+
+        message = f'"{quote.content}" - {real_name}'
         return self.Result(ok=True, message=message)
 
     #############################
@@ -308,7 +334,20 @@ class SlackBot:
           tag  <@user_id_to_remind>
         - Only one <@user_id_to_remember> is allowed.
         """
-        regex_pattern = "^remind\\W+(me|(<@.*>)+)\\W+of\\W+<@.*>\\W*$"
+        regex_pattern = "^remind\\s+(me|(<@.*>)+)\\s+of\\s+<@.*>\\s*$"
+        return re.match(regex_pattern, command, re.I) is not None
+
+    def is_random_action(self, command: str) -> bool:
+        """
+        Return True if the command string indicates a call to NB's "random" quote action.
+
+        A valid "random" action is a command of the form:
+        'random quote'
+
+        Notes:
+        - Only one target user is allowed.
+        """
+        regex_pattern = "^random\\s+quote$"
         return re.match(regex_pattern, command, re.I) is not None
 
     #############################
