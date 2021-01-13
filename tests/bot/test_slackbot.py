@@ -314,6 +314,53 @@ def test_is_help(client, session, mock_bot):
     assert mock_bot.is_help("  help  ")
 
 
+def test_converse_responds_with_two_quotes_per_person(client, session, mock_bot):
+    mock_person1 = mixer.blend(Person, first_name="Beth")
+    mock_person2 = mixer.blend(Person, first_name="Valisy")
+    mock_quotes1 = mixer.cycle().blend(Quote, person=mock_person1)
+    mock_quotes2 = mixer.cycle().blend(Quote, person=mock_person2)
+
+    session.bulk_save_objects([mock_person1, mock_person2, *mock_quotes1, *mock_quotes2])
+    session.commit()
+
+    result = mock_bot.converse([mock_person1.slack_user_id, mock_person2.slack_user_id])
+    message = result.message
+
+    assert message.count("Beth:") == 2
+    assert message.count("Valisy:") == 2
+
+
+def test_converse_repeats_quote_if_person_has_fewer_than_two_quotes(client, session, mock_bot):
+    mock_person1 = mixer.blend(Person, first_name="Beth")
+    mock_person2 = mixer.blend(Person, first_name="Vasily")
+    mock_quotes1 = mixer.cycle().blend(Quote, person=mock_person1)
+    mock_quotes2 = [Quote(content="I only have one quote", person_id=mock_person2.id)]
+
+    session.bulk_save_objects([mock_person1, mock_person2, *mock_quotes1, *mock_quotes2])
+    session.commit()
+
+    result = mock_bot.converse([mock_person1.slack_user_id, mock_person2.slack_user_id])
+    message = result.message
+
+    assert message.count("Beth:") == 2
+    assert message.count("Vasily:") == 2
+
+
+def test_converse_notifies_users_if_person_does_not_exist(client, session, mock_bot):
+    mock_person = mixer.blend(Person, first_name="Beth")
+    mock_quotes = mixer.cycle().blend(Quote, person=mock_person)
+    non_existent_id1 = "foo"
+    non_existent_id2 = "bar"
+
+    session.bulk_save_objects([mock_person, *mock_quotes])
+    session.commit()
+
+    result = mock_bot.converse([mock_person.slack_user_id, non_existent_id1, non_existent_id2])
+    message = result.message
+
+    assert message == f"I don't recognize {non_existent_id1}, {non_existent_id2}"
+
+
 def test_is_remember_action_returns_true_on_valid_command(client, session, mock_bot):
     assert mock_bot.is_remember_action(
         'remember that <@U1> said "This is a valid remember command!"'
@@ -388,3 +435,14 @@ def test_is_remind_action_returns_true_for_me_or_targets(client, session, mock_b
 def test_is_random_action_returns_true_on_valid_command(client, session, mock_bot):
     assert mock_bot.is_random_action("random quote")
     assert mock_bot.is_random_action("Random    quote")
+
+
+def test_is_converse_action_returns_true_on_valid_command(client, session, mock_bot):
+    assert mock_bot.is_converse_action("converse <@U1> <@U2>")
+    assert mock_bot.is_converse_action("converse <@U1><@U2>")
+    assert mock_bot.is_converse_action("converse <@U1>, <@U2>")
+    assert mock_bot.is_converse_action("converse <@U1>, <@U2>, <@U3>")
+
+
+def test_is_converse_action_returns_false_if_only_one_target_specified(client, session, mock_bot):
+    assert not (mock_bot.is_converse_action("converse <@U1>"))

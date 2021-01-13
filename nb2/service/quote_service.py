@@ -37,10 +37,14 @@ def get_random_quotes_from_person(slack_user_id: str, num_quotes: int = 1) -> Li
 
     Required Args:
         slack_user_id: String representing the unique Slack identifier for a Person.
-        num_quotes: The number of random quotes to receive (defaults to 1).
+        num_quotes: The maximum number of random quotes to receive (defaults to 1).
 
     Returns:
         A list of random Quote objects if it exists, else None.
+
+    Notes:
+        If num_quotes > the total amount of quotes for slack_user_id, then a list
+        of all their quotes will be returned.
     """
     return (
         Quote.query.order_by(func.random())

@@ -120,6 +120,10 @@ class SlackBot:
 
             return self.send_text(result.message, channel)
 
+        if self.is_converse_action(command):
+            result = self.converse(slack_user_id_mentions)
+            return self.send_text(result.message, channel)
+
     #############################
     # Actions
     #############################
@@ -260,7 +264,6 @@ class SlackBot:
     def random(self):
         """
         Recall a random quote from NB's memory.
-
         Returns:
             A Result namedtuple.
         """
@@ -275,6 +278,53 @@ class SlackBot:
             return self.Result(ok=True, message="No memories to remember")
 
         message = f'"{quote.content}" - {real_name}'
+        return self.Result(ok=True, message=message)
+
+    def converse(self, nostalgia_user_targets: List[str]):
+        """
+        Output a series of random quotes from nostalgia_user_targets to represent a "conversation"
+
+        Args:
+            nostalgia_user_targets: list of strings representing slack user ids to
+                                    retrieve quotes from
+
+        Notes:
+        - There must be at least two target users in nostalgia_user_targets
+        - The above is already verified by is_converse_action, however.
+        """
+        QUOTES_PER_PERSON = 2
+
+        quotes_by_slack_user_id = {
+            person: get_random_quotes_from_person(person, QUOTES_PER_PERSON)
+            for person in nostalgia_user_targets
+        }
+        names_by_slack_user_id = {
+            slack_user_id: get_person_name_by_slack_user_id(slack_user_id)
+            for slack_user_id in nostalgia_user_targets
+        }
+
+        slack_user_ids_with_no_quotes = [
+            slack_user_id
+            for slack_user_id in quotes_by_slack_user_id
+            if not quotes_by_slack_user_id.get(slack_user_id)
+        ]
+
+        if any(slack_user_ids_with_no_quotes):
+            missing_people = ", ".join(slack_user_ids_with_no_quotes)
+            message = f"I don't recognize {missing_people}"
+            return self.Result(ok=False, message=message)
+
+        message = ""
+
+        for i in range(QUOTES_PER_PERSON):
+            for slack_user_id in quotes_by_slack_user_id:
+                name = names_by_slack_user_id[slack_user_id]
+                num_quotes_for_person = len(quotes_by_slack_user_id[slack_user_id])
+                # Since not every person may have the same amount of quotes, if they run out
+                # during the iteration, then just loop back and reuse quotes in order
+                quote = quotes_by_slack_user_id[slack_user_id][i % num_quotes_for_person].content
+                message += f"{name}: {quote}\n"
+
         return self.Result(ok=True, message=message)
 
     #############################
@@ -388,6 +438,19 @@ class SlackBot:
         - Only one target user is allowed.
         """
         regex_pattern = "^random\\s+quote$"
+        return re.match(regex_pattern, command, re.I) is not None
+
+    def is_converse_action(self, command: str) -> bool:
+        """
+        Return True if the command string indicates a call to NB's "converse" action.
+
+        A valid "converse" action is a command of the form:
+        '<@NB_user_id> converse <@target_user_id>, *"'
+
+        Notes:
+        - There must be at least two <@target_user_id>s
+        """
+        regex_pattern = "^converse\\s+(<@.*>*){2,}\\s*"
         return re.match(regex_pattern, command, re.I) is not None
 
     #############################
