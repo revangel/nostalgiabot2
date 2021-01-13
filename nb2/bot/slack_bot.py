@@ -84,6 +84,9 @@ class SlackBot:
         if self.is_hello(command):
             self.send_text(self.hello().message, channel)
 
+        if self.is_help(command):
+            self.send_blocks(self.help().message, channel)
+
         if self.is_remember_action(command):
             if len(slack_user_id_mentions) != 1:
                 # TODO: inappropriate amount of target users
@@ -128,6 +131,30 @@ class SlackBot:
             "Hello!"
         """
         return self.Result(ok=True, message="Hello!")
+
+    def help(self):
+        """
+        Provide help with the bot's available commands.
+
+        Returns:
+            A string with all of the available commands.
+        """
+        msg = (
+            "The following commands are available for nostalgiabot2:\n\n"
+            ">`nb2 help` Provides a list of available commands.\n"
+            ">`nb2 hello` Sends a greeting.\n"
+            ">`nb2 converse <person1>, <person2> [, <person3>...]` Starts a nonsensical convo.\n"
+            ">`nb2 quote <person>` Digs up a memorable quote from the past.\n"
+            ">`nb2 random quote` Digs up a random memory from a random person.\n"
+            '>`nb2 remember (that|when) <person> said "<quote>"` Stores a new quote, to forever '
+            "remain in the planes of Nostalgia.\n"
+            ">`nb2 remind (me|<person>) of <person>` Digs up a memorable quote from the past, and "
+            "remind the person."
+        )
+
+        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": msg}}]
+
+        return self.Result(ok=True, message=blocks)
 
     def remember(self, target_slack_user_id: str, quote: str):
         """
@@ -262,6 +289,15 @@ class SlackBot:
         valid_greetings = ["hello", "greetings", "salutations", "howdy"]
 
         return command in valid_greetings
+
+    def is_help(self, command: str) -> bool:
+        """
+        Return True if the command string is a help request.
+
+        The valid form for a help request is:
+        "<@NB_user_id> help"
+        """
+        return command.strip() == "help"
 
     def is_remember_action(self, command: str) -> bool:
         """
