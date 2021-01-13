@@ -143,16 +143,16 @@ class SlackBot:
             "The following commands are available for nostalgiabot2:\n\n"
             ">`nb2 help` Provides a list of available commands.\n"
             ">`nb2 hello` Sends a greeting.\n"
-            ">`nb2 converse <person1>, <person2> [, <person3>...]` Starts a nonsensical convo\n"
+            ">`nb2 converse <person1>, <person2> [, <person3>...]` Starts a nonsensical convo.\n"
             ">`nb2 quote <person>` Digs up a memorable quote from the past.\n"
-            ">`nb2 random quote` Digs up a random memory from a random person\n"
+            ">`nb2 random quote` Digs up a random memory from a random person.\n"
             '>`nb2 remember (that|when) <person> said "<quote>"` Stores a new quote, to forever '
-            "remain in the planes of Nostalgia\n"
+            "remain in the planes of Nostalgia.\n"
             ">`nb2 remind (me|<person>) of <person>` Digs up a memorable quote from the past, and "
             "remind the person."
         )
 
-        blocks = [{"type": "mrkdwn", "text": msg}]
+        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": msg}}]
 
         return self.Result(ok=True, message=blocks)
 

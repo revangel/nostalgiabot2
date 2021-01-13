@@ -125,7 +125,7 @@ def test_help(client, session, mock_bot):
 
     result = mock_bot.help()
 
-    result_message = result.message[0]["text"]
+    result_message = result.message[0]["text"]["text"]
     assert all(command in result_message for command in sample_commands)
 
 
