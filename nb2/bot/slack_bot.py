@@ -5,6 +5,7 @@ from typing import List
 from slack import WebClient
 
 from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
+from nb2.service.exceptions import QuoteAlreadyExistsException
 from nb2.service.person_service import (
     create_person,
     get_person_by_slack_user_id,
@@ -155,7 +156,10 @@ class SlackBot:
 
         add_quote_dto = AddQuoteDTO(slack_user_id=target_slack_user_id, content=quote)
 
-        add_quote_to_person(add_quote_dto)
+        try:
+            add_quote_to_person(add_quote_dto)
+        except QuoteAlreadyExistsException:
+            return self.Result(ok=True, message="This quote already exists.")
 
         return self.Result(ok=True, message="Memory stored!")
 

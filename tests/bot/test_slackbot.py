@@ -163,6 +163,27 @@ def test_remember_adds_quote_to_existing_person(client, session, mock_bot):
     assert new_person.quotes[0].content == mock_quote
 
 
+def test_remember_responds_with_message_for_duplicate_quotes(client, session, mock_bot):
+    expected_message = "This quote already exists."
+    mock_slack_user_id = mixer.faker.pystr(10)
+    mock_first_name = mixer.faker.first_name()
+    mock_last_name = mixer.faker.last_name()
+    mock_quote = mixer.faker.sentence()
+
+    person = Person(
+        slack_user_id=mock_slack_user_id, first_name=mock_first_name, last_name=mock_last_name
+    )
+    session.add(person)
+    session.commit()
+    quote = Quote(content=mock_quote, person_id=person.id)
+    session.add(quote)
+    session.commit()
+
+    response = mock_bot.remember(mock_slack_user_id, mock_quote)
+
+    assert response.message == expected_message
+
+
 def test_remind_gets_a_random_quote_for_person(client, session, mock_bot):
     mock_nostalgia_person = mixer.blend(Person)
     mock_target_person = mixer.blend(Person)
