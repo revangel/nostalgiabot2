@@ -120,6 +120,15 @@ def test_remove_bot_user_id_reference(mock_bot, test_message, all_occurrences, e
     assert result == expected_result
 
 
+def test_help(client, session, mock_bot):
+    sample_commands = ["remind", "help", "remember (that|when)", "converse"]
+
+    result = mock_bot.help()
+
+    result_message = result.message[0]["text"]
+    assert all(command in result_message for command in sample_commands)
+
+
 def test_remember_creates_new_person_if_they_dont_exist(client, session, mock_bot, mocker):
     mock_slack_user_id = mixer.faker.pystr(10)
     mock_name = mixer.faker.name()
@@ -275,6 +284,13 @@ def test_random_responds_with_random_quote(client, session, mock_bot):
     result_quote, result_user = result.message.replace('"', "").split(" - ")
     assert result_quote in quote_contents
     assert result_user == mock_person.first_name
+
+
+def test_is_help(client, session, mock_bot):
+    assert mock_bot.is_help("help")
+    assert mock_bot.is_help("  help")
+    assert mock_bot.is_help("help  ")
+    assert mock_bot.is_help("  help  ")
 
 
 def test_is_remember_action_returns_true_on_valid_command(client, session, mock_bot):
