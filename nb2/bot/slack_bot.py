@@ -3,6 +3,9 @@ from collections import namedtuple
 from typing import List
 
 from slack import WebClient
+from slack_sdk.socket_mode import SocketModeClient
+from slack_sdk.socket_mode.response import SocketModeResponse
+from slack_sdk.socket_mode.request import SocketModeRequest
 
 from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
 from nb2.service.person_service import (
@@ -17,6 +20,19 @@ from nb2.service.slack_service import (
     get_user_ids_from_command,
     mention_users,
 )
+
+
+# for socket mode
+def process(client: SocketModeClient, req: SocketModeRequest):
+    print('test')
+    if req.type == "events_api":
+        # Acknowledge the request anyway
+        response = SocketModeResponse(envelope_id=req.envelope_id)
+        client.send_socket_mode_response(response)
+
+        event = req.payload.get("event", {})
+        channel = req.event.get("channel")
+        bot.run_action(req.payload, channel)
 
 
 class SlackBot:
@@ -34,8 +50,20 @@ class SlackBot:
         self.web_client = None
         self.slack_user_id = None
 
-    def init_app(self, token):
+    def init_app(self, token, app_token):
         self.web_client = WebClient(token=token)
+        self.client = SocketModeClient(app_token=app_token, web_client=self.web_client)
+
+        # Add a new listener to receive messages from Slack
+        # You can add more listeners like this
+        print(self.client.socket_mode_request_listeners)
+        self.client.socket_mode_request_listeners.append(process)
+        print(self.client.socket_mode_request_listeners)
+        # Establish a WebSocket connection to the Socket Mode servers
+        out = self.client.connect()
+        # Just not to stop this process
+        # from threading import Event
+        # Event().wait()
 
     def _init_bot_slack_user_id(self):
         """

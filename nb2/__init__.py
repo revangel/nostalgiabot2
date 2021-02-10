@@ -20,27 +20,25 @@ bot = SlackBot()
 
 def create_app(config=DevelopmentConfig):
     """Create and configure an instance of Nostalgiabot2"""
-
+    print('creating')
     app = Flask(__name__, instance_relative_config=True)
 
     # TODO:
     # Find a way to set these more dynamically
     app.config.from_object(config)
     app.logger.setLevel(logging.INFO)
-
     with app.app_context():
         db.init_app(app)
         migrate.init_app(app, db)
 
         from nb2 import api
-        from nb2.bot import slack_events
+        # from nb2.bot import slack_events
         from nb2.management import commands
 
         app.register_blueprint(api.bp)
-        app.register_blueprint(slack_events.bp)
+        # app.register_blueprint(slack_events.bp)
         app.register_blueprint(commands.bp)
-
-        bot.init_app(app.config.get("SLACK_BOT_TOKEN"))
+        bot.init_app(app.config.get("SLACK_BOT_TOKEN"), app.config.get("SLACK_APP_TOKEN"))
 
         from nb2.models import Person, Quote
 

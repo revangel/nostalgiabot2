@@ -9,6 +9,7 @@ class Config(object):
     TESTING = False
     SECRET_KEY = os.environ.get("SECRET_KEY") or ""
     SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET") or ""
+    SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN") or ""
     SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN") or ""
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or "sqlite:///" + os.path.join(
         basedir, "app.db"
