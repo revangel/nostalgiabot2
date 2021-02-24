@@ -16,14 +16,16 @@ class FlaskSocketModeClient(SocketModeClient):
         self.connect()
 
     def process(self, client: SocketModeClient, req: SocketModeRequest):
-        if req.type == "events_api":
-            # Acknowledge the request anyway
-            response = SocketModeResponse(envelope_id=req.envelope_id)
-            client.send_socket_mode_response(response)
+        if req.type != "events_api":
+            return
 
-            if (
-                req.payload["event"]["type"] == "message"
-                or req.payload["event"]["type"] == "app_mention"
-            ) and req.payload["event"].get("subtype") is None:
-                with self.app.app_context():
-                    bot.run_action(req.payload, req.payload["event"]["channel"])
+        # Acknowledge the request anyway
+        response = SocketModeResponse(envelope_id=req.envelope_id)
+        client.send_socket_mode_response(response)
+
+        if (
+            req.payload["event"]["type"] == "message"
+            or req.payload["event"]["type"] == "app_mention"
+        ) and req.payload["event"].get("subtype") is None:
+            with self.app.app_context():
+                bot.run_action(req.payload, req.payload["event"]["channel"])
