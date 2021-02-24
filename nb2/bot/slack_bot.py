@@ -34,9 +34,8 @@ class SlackBot:
         self.web_client = None
         self.slack_user_id = None
 
-    def init_app(self, token, app_token):
+    def init_app(self, token):
         self.web_client = WebClient(token=token)
-        return self.web_client
 
     def _init_bot_slack_user_id(self):
         """
