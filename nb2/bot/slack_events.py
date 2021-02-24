@@ -1,9 +1,6 @@
 from flask import Blueprint
 from flask import current_app as app
 from slackeventsapi import SlackEventAdapter
-from slack_sdk.socket_mode import SocketModeClient
-from slack_sdk.socket_mode.response import SocketModeResponse
-from slack_sdk.socket_mode.request import SocketModeRequest
 
 from nb2 import bot
 
@@ -27,5 +24,3 @@ def handle_app_mention(payload):
     event = payload.get("event", {})
     channel = event.get("channel")
     bot.run_action(payload, channel)
-
-
