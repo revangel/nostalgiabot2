@@ -1,7 +1,8 @@
 import json
-from typing import list
+from typing import List
 
 from flask import current_app
+from schema import Optional, Schema
 
 from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
 from nb2.service.person_service import create_person, get_person_by_slack_user_id
@@ -12,7 +13,7 @@ def import_from_file(filepath: str):
     """
     Parse through a memory file to import the Persons and Quotes contained.
 
-    Schema (TODO: Replace with validation via schema library)
+    Schema:
     [
         {
             "slack_user_id": str,
@@ -22,6 +23,10 @@ def import_from_file(filepath: str):
         },
     ]
     """
+    schema = Schema(
+        [{"slack_user_id": str, "first_name": str, Optional("last_name"): str, "quotes": [str]}]
+    )
+
     try:
         file = open(filepath)
     except FileNotFoundError:
@@ -29,6 +34,7 @@ def import_from_file(filepath: str):
 
     with file:
         records = json.load(file)
+        schema.validate(records)
 
         for record in records:
             slack_user_id = record.get("slack_user_id")
@@ -59,7 +65,7 @@ def _process_person(slack_user_id: str, first_name: str, last_name: str = None, 
     create_person(create_person_dto)
 
 
-def _process_quotes(slack_user_id: str, quotes: list[str]):
+def _process_quotes(slack_user_id: str, quotes: List[str]):
     """
     Add quotes to the DB for Person with slack_user_id.
 
