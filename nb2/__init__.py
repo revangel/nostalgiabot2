@@ -33,14 +33,19 @@ def create_app(config=DevelopmentConfig):
         migrate.init_app(app, db)
 
         from nb2 import api
-        from nb2.bot import slack_events
+        from nb2.bot import socket_mode
         from nb2.management import commands
 
         app.register_blueprint(api.bp)
-        app.register_blueprint(slack_events.bp)
-        app.register_blueprint(commands.bp)
+        app.register_blueprint(socket_mode.bp)
 
+        app.register_blueprint(commands.bp)
         bot.init_app(app.config.get("SLACK_BOT_TOKEN"))
+
+        if app.config.get("SOCKET_MODE"):
+            socket_mode.FlaskSocketModeClient(
+                app, app.config.get("SLACK_APP_TOKEN"), bot.web_client
+            )
 
         from nb2.models import Person, Quote
 
