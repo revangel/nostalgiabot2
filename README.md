@@ -83,3 +83,17 @@ You should now see a url in your console pointing you to where NB2 is running
 
 *Note ngrok will randomly assign a new url each time it is run, so step 5 may need to be repeated each time ngrok is restarted.*
 
+
+### Enabling Socket Mode
+
+Socket Mode is required if your server can not accept outside connections.
+
+On the slack app page https://app.slack.com
+
+1.  Go to **Socket Mode** and turn it on
+
+1.  Go to **Basic Information**, generate an app level token and copy the token to .env as `SLACK_APP_TOKEN=xapp-FOOBAR`.  Make sure the token has the scope *connections:write*.
+
+1.  Go to **Event Subscriptions** and enable *app_mention* and *message.im*
+
+1.  In *config.py* SOCKET_MODE should be set to True
