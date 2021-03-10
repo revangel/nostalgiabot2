@@ -71,32 +71,32 @@ You should now see a url in your console pointing you to where NB2 is running
 
 2. Enable socket mode.
 
-![Socket Mode](readme_assets/socket_mode.png?raw=true)
+![Socket Mode](./readme_assets/socket_mode.png?raw=true)
 
 3. Generate a token with `connection:write` scope.
 
-![App Token](readme_assets/app_token.png?raw=true)
+![App Token](./readme_assets/app_token.png?raw=true)
 
 4. Copy the token and paste it under the `SLACK_APP_TOKEN` variable in your local `.env` file.
 
 5. Enable event subscriptions and subscribe to the `app_mention` bot event.
 
-![Event Subscription](readme_assets/event_subscription.png?raw=true)
+![Event Subscription](./readme_assets/event_subscription.png?raw=true)
 
 6. Under `OAuth & Permissions`, install to workspace.
 
-![Install](readme_assets/install.png?raw=true)
+![Install](./readme_assets/install.png?raw=true)
 
 7. Set the following bot scopes: `app_mentions:read`, `chat:write`, `users:read`
 
-![Bot Scopes](readme_assets/bot_scopes.png?raw=true)
+![Bot Scopes](./readme_assets/bot_scopes.png?raw=true)
 
 8. Copy `Bot User OAuth Token` and paste it under the `SLACK_BOT_TOKEN` variable in your local `.env` file.
 
-![Bot Token](readme_assets/slack_bot_token.png?raw=true)
+![Bot Token](./readme_assets/slack_bot_token.png?raw=true)
 
 9. Under `Basic Information` copy the `Signing Secret` and paste it under the `SLACK_SIGNING_SECRET` variable in your local `.env` file.
 
-![Signing Secret](readme_assets/signing_secret.png?raw=true)
+![Signing Secret](./readme_assets/signing_secret.png?raw=true)
 
 10. The bot should be ready to use and can now access the running Flask server.
