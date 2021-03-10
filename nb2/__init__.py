@@ -42,7 +42,10 @@ def create_app(config=DevelopmentConfig):
         app.register_blueprint(commands.bp)
         bot.init_app(app.config.get("SLACK_BOT_TOKEN"))
 
-        socket_mode.FlaskSocketModeClient(app, app.config.get("SLACK_APP_TOKEN"), bot.web_client)
+        if app.config.get("SOCKET_MODE"):
+            socket_mode.FlaskSocketModeClient(
+                app, app.config.get("SLACK_APP_TOKEN"), bot.web_client
+            )
 
         from nb2.models import Person, Quote
 

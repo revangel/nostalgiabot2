@@ -15,6 +15,7 @@ class Config(object):
         basedir, "app.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SOCKET_MODE = True
 
 
 class DevelopmentConfig(Config):
@@ -27,3 +28,4 @@ class TestConfig(Config):
     SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET") or "x"
     SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN") or "x"
     SLACK_EVENTS_URL = os.environ.get("SLACK_EVENTS_URL") or "/x/"
+    SOCKET_MODE = False  # TODO: Mock out the FlaskSocketModeClient
