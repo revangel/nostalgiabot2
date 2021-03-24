@@ -69,31 +69,34 @@ You should now see a url in your console pointing you to where NB2 is running
 
 1. Create a new bot and assign it to a workspace https://api.slack.com/apps?new_app=1
 
-2. Install the app from the api.slack.com site under the OAuth & Permissions Feature. Save the **Bot User OAuth Access Token** and assign it to `SLACK_BOT_TOKEN` in the .env file created in step 1.
+2. Enable socket mode.
 
-3. Still on api.slack.com, enable events under th Event Subscriptions Feature. Subscribe to the bot event `app_mention`.
+![Socket Mode](./readme_assets/socket_mode.png?raw=true)
 
-4. A request url is needed for step 4. In development, it's easiest to use ngrok to generate a url that will forward to the Flask app's port. Follow the first three steps [here] (https://api.slack.com/tutorials/tunneling-with-ngrok). Assign the forwarding url as the Request URL under the Event Subscription Feature.
+3. Generate a token with `connection:write` scope.
 
-5. Reinstall the Slack Bot app.
+![App Token](./readme_assets/app_token.png?raw=true)
 
-6. Under the Slack Bot app's Basic Information, copy the Client Secret and assign it to `SLACK_SIGNING_SECRET` in the .env file created in step 1.
+4. Copy the token and paste it under the `SLACK_APP_TOKEN` variable in your local `.env` file.
 
-7. The bot should be ready to use and can now access the running Flask server.
+5. Enable event subscriptions and subscribe to the `app_mention` bot event.
 
-*Note ngrok will randomly assign a new url each time it is run, so step 5 may need to be repeated each time ngrok is restarted.*
+![Event Subscription](./readme_assets/event_subscription.png?raw=true)
 
+6. Under `OAuth & Permissions`, install to workspace.
 
-### Enabling Socket Mode
+![Install](./readme_assets/install.png?raw=true)
 
-Socket Mode is required if your server can not accept outside connections.
+7. Set the following bot scopes: `app_mentions:read`, `chat:write`, `users:read`
 
-On the slack app page https://app.slack.com
+![Bot Scopes](./readme_assets/bot_scopes.png?raw=true)
 
-1.  Go to **Socket Mode** and turn it on
+8. Copy `Bot User OAuth Token` and paste it under the `SLACK_BOT_TOKEN` variable in your local `.env` file.
 
-1.  Go to **Basic Information**, generate an app level token and copy the token to .env as `SLACK_APP_TOKEN=xapp-FOOBAR`.  Make sure the token has the scope *connections:write*.
+![Bot Token](./readme_assets/slack_bot_token.png?raw=true)
 
-1.  Go to **Event Subscriptions** and enable *app_mention* and *message.im*
+9. Under `Basic Information` copy the `Signing Secret` and paste it under the `SLACK_SIGNING_SECRET` variable in your local `.env` file.
 
-1.  In *config.py* SOCKET_MODE should be set to True
+![Signing Secret](./readme_assets/signing_secret.png?raw=true)
+
+10. The bot should be ready to use and can now access the running Flask server.
