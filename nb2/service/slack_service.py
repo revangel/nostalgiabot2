@@ -1,4 +1,5 @@
 import re
+from typing import Union
 
 
 def get_user_ids_from_command(command: str) -> [str]:
@@ -39,6 +40,28 @@ def mention_users(slack_user_ids: [str]) -> [str]:
     """
 
     return " ".join([f"<@{user_id}>" for user_id in slack_user_ids])
+
+
+def trim_mention(slack_user_id: Union[str, list]) -> str:
+    """
+    Remove the tokens from a slack_user_id that are required for pinging, leaving
+    just the raw slack_user_id. Also supports removing mentions from a list of
+    slack_user_ids.
+
+    e.g.
+    "<@u1>" -> "u1"
+    ["<@u1>"] -> ["u1"]
+
+    Args:
+        - slack_user_id: a string or list of strings that may or may not be wrapped in a mention.
+
+    Returns:
+        A string that represents the raw slack_user_id.
+    """
+    if isinstance(slack_user_id, list):
+        return [user_id.strip("<@>") for user_id in slack_user_id]
+
+    return slack_user_id.strip("<@>")
 
 
 def get_quote_content_from_remember_command(command: str) -> str:

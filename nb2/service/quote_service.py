@@ -5,11 +5,7 @@ from sqlalchemy.sql.expression import func
 from nb2 import db
 from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO
-from nb2.service.exceptions import (
-    EmptyRequiredFieldException,
-    PersonDoesNotExistException,
-    QuoteAlreadyExistsException,
-)
+from nb2.service.exceptions import EmptyRequiredFieldException, QuoteAlreadyExistsException
 
 
 def get_quote_from_person(slack_user_id: str, quote_id: int):
@@ -31,12 +27,12 @@ def get_quote_from_person(slack_user_id: str, quote_id: int):
     )
 
 
-def get_random_quotes_from_person(slack_user_id: str, num_quotes: int = 1) -> List[Quote]:
+def get_random_quotes_from_person(person: Person, num_quotes: int = 1) -> List[Quote]:
     """
     Get <num_quotes> random Quote(s) from a Person.
 
     Required Args:
-        slack_user_id: String representing the unique Slack identifier for a Person.
+        person: A Person.
         num_quotes: The maximum number of random quotes to receive (defaults to 1).
 
     Returns:
@@ -49,7 +45,7 @@ def get_random_quotes_from_person(slack_user_id: str, num_quotes: int = 1) -> Li
     return (
         Quote.query.order_by(func.random())
         .join(Person)
-        .filter(Person.slack_user_id == slack_user_id)
+        .filter(Person.id == person.id)
         .limit(num_quotes)
         .all()
     )
@@ -84,7 +80,7 @@ def add_quote_to_person(data: AddQuoteDTO):
         Newly created Quote on success.
 
     Raises:
-        PersonDoesNotExistException if no Person with slack_user_id exists.
+        EmptyRequiredFieldException if there are empty fields in the AddQuoteDTO.
         QuoteAlreadyExistsException if trying to add a Quote containing content
         that already exists in one of Person's Quotes.
 
@@ -98,10 +94,8 @@ def add_quote_to_person(data: AddQuoteDTO):
             f"Can't add Quote to Person with these fields empty: {empty_fields}"
         )
 
-    target_person = Person.query.filter_by(slack_user_id=data.slack_user_id).one_or_none()
+    target_person = data.person
 
-    if not target_person:
-        raise PersonDoesNotExistException
     if target_person.has_said(data.content):
         raise QuoteAlreadyExistsException
 
