@@ -34,9 +34,9 @@ class CreatePersonDTO(BaseDTO):
     REQUIRED_FIELDS = ["slack_user_id", "first_name"]
 
     slack_user_id: str
-    ghost_user_id: str
     first_name: str
     last_name: str = None
+    ghost_user_id: str = None
 
 
 @dataclass

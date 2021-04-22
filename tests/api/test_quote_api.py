@@ -21,12 +21,12 @@ def get_serialized_quote(quote):
 
 @pytest.fixture()
 def prepared_user(client, session):
-    yield mixer.blend(Person)
+    yield mixer.blend(Person, slack_user_id=mixer.RANDOM)
 
 
 @pytest.fixture()
 def prepared_quote(client, session, prepared_user):
-    yield mixer.blend(Quote)
+    yield mixer.blend(Quote, person=mixer.blend(Person, slack_user_id=mixer.RANDOM))
 
 
 def test_get_quote_from_person(client, session, prepared_quote):

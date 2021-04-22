@@ -38,7 +38,7 @@ class SlackBot:
     # quote <ghost_user_id_to_quote|slack_user_id_to_quote>
     QUOTE_REGEX = "^quote\\s+(?P<nostalgia_user_target>\\w+|<@\\w+>)$"
     # random
-    RANDOM_REGEX = "^random$"
+    RANDOM_REGEX = "^random\\s+quote$"
 
     # converse <ghost_user_id_to_quote|slack_user_id_to_quote>{2,}
     CONVERSE_REGEX = (
@@ -266,7 +266,7 @@ class SlackBot:
         matched = re.match(self.QUOTE_REGEX, message, re.I)
 
         if not matched:
-            return self.unknown_error()
+            return self.unknown_error
 
         nostalgia_user_target = trim_mention(matched.group("nostalgia_user_target"))
 
@@ -292,7 +292,7 @@ class SlackBot:
         matched = re.match(self.REMIND_REGEX, message, re.I)
 
         if not matched:
-            return self.unknown_error()
+            return self.unknown_error
 
         slack_user_targets = trim_mention(matched.group("slack_user_targets").split())
         nostalgia_user_target = trim_mention(matched.group("nostalgia_user_target"))
@@ -347,7 +347,7 @@ class SlackBot:
         matched = re.match(self.CONVERSE_REGEX, message, re.I)
 
         if not matched:
-            return self.unknown_error()
+            return self.unknown_error
 
         nostalgia_user_targets = trim_mention(
             re.split(",\\s+", matched.group("nostalgia_user_targets"))
@@ -359,7 +359,7 @@ class SlackBot:
         ]
 
         if unknown_persons:
-            return self.Result(ok=False, message=f"I do not recognize {', '.join(unknown_persons)}")
+            return self.Result(ok=False, message=f"I don't recognize {', '.join(unknown_persons)}")
 
         quotes_by_slack_user_id = {
             person.slack_user_id
