@@ -37,7 +37,8 @@ class SlackBot:
 
     # quote <ghost_user_id_to_quote|slack_user_id_to_quote>
     QUOTE_REGEX = "^quote\\s+(?P<nostalgia_user_target>\\w+|<@\\w+>)$"
-    # random
+
+    # random quote
     RANDOM_REGEX = "^random\\s+quote$"
 
     # converse <ghost_user_id_to_quote|slack_user_id_to_quote>{2,}
