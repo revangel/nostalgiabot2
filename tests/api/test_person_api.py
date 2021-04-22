@@ -23,12 +23,12 @@ def get_serialized_person(person, include_quotes=False):
 
 @pytest.fixture()
 def prepared_user(client, session):
-    return mixer.blend(Person)
+    return mixer.blend(Person, slack_user_id=mixer.RANDOM)
 
 
 @pytest.mark.parametrize("num_people", (0, 2))
 def test_get_all_people(num_people, client, session):
-    mixer.cycle(num_people).blend(Person)
+    mixer.cycle(num_people).blend(Person, slack_user_id=mixer.RANDOM)
 
     response = client.get(url_for("api.personlistresource"))
 
@@ -39,7 +39,7 @@ def test_get_all_people(num_people, client, session):
 
 @pytest.mark.parametrize("num_quotes", (0, 2))
 def test_get_all_people_with_quotes(num_quotes, client, session):
-    person1, person2 = mixer.cycle(2).blend(Person)
+    person1, person2 = mixer.cycle(2).blend(Person, slack_user_id=mixer.RANDOM)
     mixer.cycle(num_quotes).blend(Quote, person=person1)
     mixer.cycle(num_quotes).blend(Quote, person=person2)
     expected_result = [
@@ -78,7 +78,7 @@ def test_get_person_with_quotes(prepared_user, num_quotes, client, session):
 
 
 def test_get_correct_person_by_slack_user_id(prepared_user, client, session):
-    other_person = mixer.blend(Person)
+    other_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     expected_data = get_serialized_person(prepared_user)
 
     assert (
@@ -94,7 +94,7 @@ def test_get_correct_person_by_slack_user_id(prepared_user, client, session):
 
 
 def test_get_person_raises_404_if_person_does_not_exist(client, session):
-    existing_person = mixer.blend(Person)
+    existing_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     slack_user_id_lookup = mixer.faker.pystr(16)
 
     # Make sure slack_user_id_lookup doesn't already exist in db
@@ -125,7 +125,7 @@ def test_create_person(client, session):
 
 
 def test_cannot_create_person_with_duplicate_slack_user_id(client, session):
-    existing_person = mixer.blend(Person)
+    existing_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     data = {"slack_user_id": existing_person.slack_user_id, "first_name": "foo", "last_name": "bar"}
     expected_error = f"Person with slack_user_id {data['slack_user_id']} already exists"
 

@@ -30,7 +30,13 @@ def create_app(config=DevelopmentConfig):
 
     with app.app_context():
         db.init_app(app)
-        migrate.init_app(app, db)
+
+        # SQLite does not support dropping or altering columns.
+        # https://stackoverflow.com/questions/30394222/why-flask-migrate-cannot-upgrade-when-drop-column
+        if db.engine.url.drivername == "sqlite":
+            migrate.init_app(app, db, render_as_batch=True)
+        else:
+            migrate.init_app(app, db)
 
         from nb2 import api
         from nb2.bot import socket_mode

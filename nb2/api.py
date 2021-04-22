@@ -314,7 +314,7 @@ class QuoteListResource(QuoteResourceBase):
                 message=self.ERRORS.get("already_exists").format(slack_user_id=slack_user_id),
             )
 
-        data = AddQuoteDTO(slack_user_id, content)
+        data = AddQuoteDTO(target_person, content)
         new_quote = add_quote_to_person(data)
 
         return marshal(new_quote, self.fields), 201

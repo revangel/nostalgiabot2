@@ -14,20 +14,20 @@ from nb2.service.person_service import (
 
 @pytest.mark.parametrize("num_people", (2, 10))
 def test_get_all_people_returns_all_people(client, session, num_people):
-    mixer.cycle(num_people).blend(Person)
+    mixer.cycle(num_people).blend(Person, slack_user_id=mixer.RANDOM)
 
     assert len(get_all_people()) == num_people
 
 
 def test_get_person_by_slack_user_id(client, session):
-    person = mixer.blend(Person)
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     retrieved_person = get_person_by_slack_user_id(person.slack_user_id)
 
     assert person.id == retrieved_person.id
 
 
 def test_get_random_person(client, session):
-    people = mixer.cycle().blend(Person)
+    people = mixer.cycle().blend(Person, slack_user_id=mixer.RANDOM)
     slack_user_ids = [person.slack_user_id for person in people]
     different_user_returned = False
 
