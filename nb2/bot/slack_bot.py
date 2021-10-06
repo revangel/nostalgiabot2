@@ -106,11 +106,11 @@ class SlackBot:
 
         if self.is_hello(command):
             result = self.hello()
-            self.send_text(result.message, channel)
+            return self.send_text(result.message, channel)
 
         if self.is_help(command):
             result = self.help()
-            self.send_blocks(result.message, channel)
+            return self.send_blocks(result.message, channel)
 
         if self.is_remember_action(command):
             result = self.remember(command)
