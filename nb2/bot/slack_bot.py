@@ -197,7 +197,7 @@ class SlackBot:
             try:
                 user_info = self.fetch_user_info(target_user_id)
                 real_name = user_info.get("real_name")
-                first_name, last_name = real_name.split()
+                first_name, *last_name = real_name.split()
                 display_name = user_info.get("name")
                 create_person_dto = CreatePersonDTO(
                     slack_user_id=target_user_id, first_name=first_name, ghost_user_id=display_name
