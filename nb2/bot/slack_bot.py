@@ -132,7 +132,7 @@ class SlackBot:
             result = self.converse(command)
             return self.send_text(result.message, channel)
 
-        return self.send_text(self.unknown_error, channel)
+        return self.send_text(self.unknown_error.message, channel)
 
     #############################
     # Actions
