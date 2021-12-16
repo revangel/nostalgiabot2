@@ -3,7 +3,7 @@ from typing import Union
 from sqlalchemy import func
 
 from nb2 import db
-from nb2.models import Person
+from nb2.models import Person, Quote
 from nb2.service.dtos import CreateGhostPersonDTO, CreatePersonDTO
 from nb2.service.exceptions import EmptyRequiredFieldException
 
@@ -77,18 +77,13 @@ def get_person_name_by_slack_user_id(slack_user_id: str):
         return person.first_name
 
 
-def get_random_person() -> str:
+def get_person_by_quote(quote: Quote):
     """
-    Return random Person's slack_user_id.
-
+    Return the Person object who said the quote.
     Returns:
-        If there are any Persons in the system, return the slack_user_id
-        or ghost_user_id of one of them, otherwise return None.
+        The Person object related to the quote, or None if this Person does not exist.
     """
-    person = Person.query.order_by(func.random()).first()
-
-    if person is not None:
-        return person.slack_user_id or person.ghost_user_id
+    return Person.query.get(quote.person_id)
 
 
 def create_person(data: Union[CreatePersonDTO, CreateGhostPersonDTO]):

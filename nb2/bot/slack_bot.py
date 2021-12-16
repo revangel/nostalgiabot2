@@ -1,6 +1,6 @@
 import re
 from collections import namedtuple
-from typing import Union
+from typing import Tuple, Union
 
 from slack import WebClient
 from slack_sdk.errors import SlackApiError
@@ -8,8 +8,13 @@ from slack_sdk.errors import SlackApiError
 from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
 from nb2.service.exceptions import QuoteAlreadyExistsException
-from nb2.service.person_service import create_person, get_person, get_random_person
-from nb2.service.quote_service import add_quote_to_person, get_random_quotes_from_person
+from nb2.service.person_service import create_person, get_person, get_person_by_quote
+from nb2.service.quote_service import (
+    add_quote_to_person,
+    has_quotes,
+    get_random_quote_from_any_person,
+    get_random_quotes_from_person,
+)
 from nb2.service.slack_service import mention_users, trim_mention
 
 
@@ -158,12 +163,12 @@ class SlackBot:
             "The following commands are available for nostalgiabot2:\n\n"
             ">`nb2 help` Provides a list of available commands.\n"
             ">`nb2 hello` Sends a greeting.\n"
-            ">`nb2 converse <person1>, <person2> [, <person3>...]` Starts a nonsensical convo.\n"
-            ">`nb2 quote <person>` Digs up a memorable quote from the past.\n"
+            ">`nb2 converse <@person1>, <@person2> [, <@person3>...]` Starts a nonsensical convo.\n"
+            ">`nb2 quote <@person>` Digs up a memorable quote from the past.\n"
             ">`nb2 random quote` Digs up a random memory from a random person.\n"
-            '>`nb2 remember (that|when) <person> said "<quote>"` Stores a new quote, to forever '
+            '>`nb2 remember (that|when) <@person> said "<quote>"` Stores a new quote, to forever '
             "remain in the planes of Nostalgia.\n"
-            ">`nb2 remind (me|<person>+) of <person>` Digs up a memorable quote from the past, and "
+            ">`nb2 remind (me|<@person>) of <@person>` Digs up a memorable quote from the past, and "
             "remind the person."
         )
 
@@ -184,9 +189,6 @@ class SlackBot:
         """
         matched = re.match(self.REMEMBER_REGEX, message, re.I)
 
-        if not matched:
-            return self.unknown_error
-
         target_user_id = trim_mention(matched.group("user_id"))
         quote = matched.group("quote")
         person = get_person(target_user_id)
@@ -196,11 +198,12 @@ class SlackBot:
         if person is None:
             try:
                 user_info = self.fetch_user_info(target_user_id)
-                real_name = user_info.get("real_name")
-                first_name, *last_name = real_name.split()
-                display_name = user_info.get("name")
+                user_profile = user_info["profile"]
                 create_person_dto = CreatePersonDTO(
-                    slack_user_id=target_user_id, first_name=first_name, ghost_user_id=display_name
+                    slack_user_id=target_user_id,
+                    first_name=user_profile.get("first_name"),
+                    last_name=user_profile.get("last_name"),
+                    ghost_user_id=user_profile.get("display_name"),
                 )
             except SlackApiError:
                 create_person_dto = CreateGhostPersonDTO(
@@ -220,36 +223,39 @@ class SlackBot:
 
         return self.Result(ok=True, message="Memory stored!")
 
-    def _random_quote(self, nostalgia_user_target: str) -> (Union[Person, str], Quote):
+    def _random_quote(self, nostalgia_user_target: str = None) -> Tuple[Union[Person, str], Quote]:
         """
         Fetch a random quote from NB's memory of a Person with nostalgia_user_target, if they exist.
+        If no user is specified, pick a random Quote and return that user and quote.
 
         Args:
             nostalgia_user_target: string representing slack_user_id or ghost_user_id
                                    for Person to retrieve quote.
+                                   If not provided, this will return a random quote from
+                                   a random Person.
 
         Returns:
             A tuple. If the Person doesn't exist, the tuple will be a string with a string
             identifier and None. Otherwise, the tuple will contain a Person and a Quote.
         """
+        if not nostalgia_user_target:
+            quote = get_random_quote_from_any_person()
+            person = get_person_by_quote(quote)
+            return person, quote
+
         person = get_person(nostalgia_user_target)
 
         # The Person doesn't exist in the database, so return their first name,
         # or the provided nostalgia_user_target with None as the Quote.
         if person is None:
-            try:
-                user_info = self.fetch_user_info(nostalgia_user_target)
-                real_name = user_info.get("real_name").split()[0]
-                return real_name, None
-            except SlackApiError:
-                return nostalgia_user_target, None
+            return nostalgia_user_target, None
 
         quote = get_random_quotes_from_person(person)
 
         # The Person doesn't have any quotes saves so return their first name,
         # with None as the Quote.
         if not quote:
-            return person.first_name, None
+            return nostalgia_user_target, None
 
         # Success!
         return person, quote[0]
@@ -266,17 +272,14 @@ class SlackBot:
         """
         matched = re.match(self.QUOTE_REGEX, message, re.I)
 
-        if not matched:
-            return self.unknown_error
-
         nostalgia_user_target = trim_mention(matched.group("nostalgia_user_target"))
 
         person, quote = self._random_quote(nostalgia_user_target)
 
         if quote is None:
-            return self.Result(ok=True, message=f"I don't remember {person}.")
+            return self.Result(ok=True, message=f"I don't remember <@{person}>.")
 
-        return self.Result(ok=True, message=quote.content)
+        return self.Result(ok=True, message=f'"{quote.content}" - {person.first_name}')
 
     def remind(self, message: str, sender: str) -> Result:
         """
@@ -292,16 +295,13 @@ class SlackBot:
         """
         matched = re.match(self.REMIND_REGEX, message, re.I)
 
-        if not matched:
-            return self.unknown_error
-
         slack_user_targets = trim_mention(matched.group("slack_user_targets").split())
         nostalgia_user_target = trim_mention(matched.group("nostalgia_user_target"))
 
         person, quote = self._random_quote(nostalgia_user_target)
 
         if quote is None:
-            return self.Result(ok=True, message=f"I don't remember {person}.")
+            return self.Result(ok=True, message=f"I don't remember <@{person}>.")
 
         # Replace "me" with the sender slack_user_id so that the sender can be pinged
         slack_user_targets = [sender if target == "me" else target for target in slack_user_targets]
@@ -319,16 +319,10 @@ class SlackBot:
         Returns:
             A Result namedtuple.
         """
-        person = get_random_person()
-
-        if person is None:
+        if not has_quotes():
             return self.Result(ok=True, message="No memories to remember")
 
-        person, quote = self._random_quote(person)
-
-        # TODO: Maybe try to fetch another person or prevent getting Persons with no Quotes?
-        if quote is None:
-            return self.Result(ok=True, message="No memories to remember")
+        person, quote = self._random_quote()
 
         message = f'"{quote.content}" - {person.first_name}'
         return self.Result(ok=True, message=message)
@@ -347,9 +341,6 @@ class SlackBot:
         QUOTES_PER_PERSON = 2
         matched = re.match(self.CONVERSE_REGEX, message, re.I)
 
-        if not matched:
-            return self.unknown_error
-
         nostalgia_user_targets = trim_mention(
             re.split(",\\s+", matched.group("nostalgia_user_targets"))
         )
@@ -360,7 +351,9 @@ class SlackBot:
         ]
 
         if unknown_persons:
-            return self.Result(ok=False, message=f"I don't recognize {', '.join(unknown_persons)}")
+            return self.Result(
+                ok=False, message=f"I don't recognize <@{'>, <@'.join(unknown_persons)}>"
+            )
 
         quotes_by_slack_user_id = {
             person.slack_user_id
@@ -379,8 +372,8 @@ class SlackBot:
         ]
 
         if any(slack_user_ids_with_no_quotes):
-            missing_people = ", ".join(slack_user_ids_with_no_quotes)
-            message = f"I don't recognize {missing_people}"
+            missing_people = ", ".join(f"@<{slack_user_ids_with_no_quotes}>")
+            message = f"I don't remember {missing_people}."
             return self.Result(ok=False, message=message)
 
         message = ""

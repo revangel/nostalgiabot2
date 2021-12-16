@@ -27,6 +27,26 @@ def get_quote_from_person(slack_user_id: str, quote_id: int):
     )
 
 
+def has_quotes() -> bool:
+    """
+    Check if there are any quotes in the table.
+
+    Returns:
+        A bool representing if there are any quotes.
+    """
+    return bool(Quote.query.first())
+
+
+def get_random_quote_from_any_person() -> Quote:
+    """
+    Get a random Quote from any Person.
+
+    Returns:
+        A random Quote object if it exists, else None.
+    """
+    return Quote.query.order_by(func.random()).first()
+
+
 def get_random_quotes_from_person(person: Person, num_quotes: int = 1) -> List[Quote]:
     """
     Get <num_quotes> random Quote(s) from a Person.
