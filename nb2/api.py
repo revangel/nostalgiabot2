@@ -3,7 +3,7 @@ from flask_restful import Api, Resource, abort, fields, marshal, reqparse
 from sqlalchemy.exc import IntegrityError
 
 from nb2.models import Person
-from nb2.service.dtos import AddQuoteDTO, CreatePersonDTO
+from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
 from nb2.service.person_service import create_person, get_all_people, get_person_by_slack_user_id
 from nb2.service.quote_service import (
     add_quote_to_person,
@@ -84,6 +84,7 @@ class PersonResourceBase(Resource, IncludeFilterMixin):
             "slack_user_id": fields.String,
             "first_name": fields.String,
             "last_name": fields.String,
+            "ghost_user_id": fields.String,
         }
 
         self.parser = reqparse.RequestParser(bundle_errors=True)
@@ -124,9 +125,9 @@ class PersonListResource(PersonResourceBase):
     """
 
     ERRORS = {
-        "slack_user_id_missing": "slack_user_id is required",
+        "ghost_user_id_missing": "ghost_user_id is required",
         "first_name_missing": "first_name is required",
-        "already_exists": "Person with slack_user_id {slack_user_id} already exists",
+        "already_exists": "Person with id {slack_user_id} or {ghost_user_id} already exists",
     }
 
     def __init__(self, *args, **kwargs):
@@ -135,9 +136,7 @@ class PersonListResource(PersonResourceBase):
         self.parser.add_argument(
             "slack_user_id",
             dest="slack_user_id",
-            required=True,
             type=str,
-            help=self.ERRORS.get("slack_user_id_missing"),
         )
         self.parser.add_argument(
             "first_name",
@@ -151,6 +150,13 @@ class PersonListResource(PersonResourceBase):
             dest="last_name",
             type=str,
         )
+        self.parser.add_argument(
+            "ghost_user_id",
+            dest="ghost_user_id",
+            required=True,
+            type=str,
+            help=self.ERRORS.get("ghost_user_id_missing"),
+        )
 
     def get(self):
         people = get_all_people()
@@ -161,15 +167,31 @@ class PersonListResource(PersonResourceBase):
         slack_user_id = parsed_args.get("slack_user_id")
         first_name = parsed_args.get("first_name")
         last_name = parsed_args.get("last_name")
+        ghost_user_id = parsed_args.get("ghost_user_id")
 
-        data = CreatePersonDTO(slack_user_id, first_name, last_name)
+        if slack_user_id:
+            create_person_dto = CreatePersonDTO(
+                slack_user_id=slack_user_id,
+                first_name=first_name,
+                last_name=last_name,
+                ghost_user_id=ghost_user_id,
+            )
+        else:
+            create_person_dto = CreateGhostPersonDTO(
+                # TODO: Need a better way to manage first_name in this case
+                ghost_user_id=ghost_user_id,
+                first_name=first_name,
+                last_name=last_name,
+            )
 
         try:
-            new_person = create_person(data)
+            new_person = create_person(create_person_dto)
         except IntegrityError:
             return abort(
                 409,
-                message=self.ERRORS.get("already_exists").format(slack_user_id=slack_user_id),
+                message=self.ERRORS.get("already_exists").format(
+                    slack_user_id=slack_user_id, ghost_user_id=ghost_user_id
+                ),
             )
 
         return marshal(new_person, self.fields), 201

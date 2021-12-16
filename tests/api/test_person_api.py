@@ -13,6 +13,7 @@ def get_serialized_person(person, include_quotes=False):
         "slack_user_id": person.slack_user_id,
         "first_name": person.first_name,
         "last_name": person.last_name,
+        "ghost_user_id": None,
     }
 
     if include_quotes:
@@ -111,7 +112,12 @@ def test_get_person_raises_404_if_person_does_not_exist(client, session):
 
 
 def test_create_person(client, session):
-    data = {"slack_user_id": "foobar", "first_name": "foo", "last_name": "bar"}
+    data = {
+        "slack_user_id": "foobar",
+        "first_name": "foo",
+        "last_name": "bar",
+        "ghost_user_id": "foobar",
+    }
 
     response = client.post(
         url_for("api.personlistresource"), data=json.dumps(data), content_type="application/json"
@@ -126,8 +132,15 @@ def test_create_person(client, session):
 
 def test_cannot_create_person_with_duplicate_slack_user_id(client, session):
     existing_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
-    data = {"slack_user_id": existing_person.slack_user_id, "first_name": "foo", "last_name": "bar"}
-    expected_error = f"Person with slack_user_id {data['slack_user_id']} already exists"
+    data = {
+        "slack_user_id": existing_person.slack_user_id,
+        "first_name": "foo",
+        "last_name": "bar",
+        "ghost_user_id": "foobar",
+    }
+    expected_error = (
+        f"Person with id {data['slack_user_id']} or {data['ghost_user_id']} already exists"
+    )
 
     response = client.post(
         url_for("api.personlistresource"), data=json.dumps(data), content_type="application/json"
@@ -138,9 +151,14 @@ def test_cannot_create_person_with_duplicate_slack_user_id(client, session):
     assert response_json.get("message") == expected_error
 
 
-@pytest.mark.parametrize("field", ["slack_user_id", "first_name"])
+@pytest.mark.parametrize("field", ["ghost_user_id", "first_name"])
 def test_cannot_create_person_with_missing_required_fields(field, client, session):
-    data = {"slack_user_id": "foobar", "first_name": "foo", "last_name": "bar"}
+    data = {
+        "slack_user_id": "foobar",
+        "first_name": "foo",
+        "last_name": "bar",
+        "ghost_user_id": "foobar",
+    }
     expected_error = {field: f"{field} is required"}
     data.pop(field)
 
