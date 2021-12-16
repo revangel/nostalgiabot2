@@ -2,9 +2,8 @@ from flask import Blueprint
 from flask_restful import Api, Resource, abort, fields, marshal, reqparse
 from sqlalchemy.exc import IntegrityError
 
-from nb2.models import Person
 from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
-from nb2.service.person_service import create_person, get_all_people, get_person_by_slack_user_id
+from nb2.service.person_service import create_person, get_all_people, get_person
 from nb2.service.quote_service import (
     add_quote_to_person,
     get_all_quotes_from_person,
@@ -104,13 +103,13 @@ class PersonResource(PersonResourceBase):
     person by a `slack_user_id`.
     """
 
-    ERRORS = {"does_not_exist": "Person with slack_user_id {slack_user_id} does not exist"}
+    ERRORS = {"does_not_exist": "Person with user_id {user_id} does not exist"}
 
-    def get(self, slack_user_id):
-        person = get_person_by_slack_user_id(slack_user_id)
+    def get(self, user_id):
+        person = get_person(user_id)
 
         if person is None:
-            abort(404, message=self.ERRORS["does_not_exist"].format(slack_user_id=slack_user_id))
+            abort(404, message=self.ERRORS["does_not_exist"].format(user_id=user_id))
 
         return marshal(person, self.fields), 200
 
@@ -223,29 +222,28 @@ class PersonQuoteResource(QuoteResourceBase):
     """
 
     ERRORS = {
-        "person_does_not_exist": ("Person with slack_user_id {slack_user_id} " "does not exist"),
+        "person_does_not_exist": ("Person with user_id {user_id} does not exist"),
         "quote_does_not_exist": (
-            "Quote with id {quote_id} does not exist for "
-            "person with slack_user_id {slack_user_id}"
+            "Quote with id {quote_id} does not exist for " "person with user_id {user_id}"
         ),
     }
 
-    def get(self, slack_user_id, quote_id):
-        person = get_person_by_slack_user_id(slack_user_id)
+    def get(self, user_id, quote_id):
+        person = get_person(user_id)
 
         if person is None:
             abort(
                 404,
-                message=self.ERRORS["person_does_not_exist"].format(slack_user_id=slack_user_id),
+                message=self.ERRORS["person_does_not_exist"].format(user_id=user_id),
             )
 
-        quote = get_quote_from_person(slack_user_id, quote_id)
+        quote = get_quote_from_person(user_id, quote_id)
 
         if quote is None:
             abort(
                 404,
                 message=self.ERRORS["quote_does_not_exist"].format(
-                    quote_id=quote_id, slack_user_id=slack_user_id
+                    quote_id=quote_id, user_id=user_id
                 ),
             )
 
@@ -260,19 +258,19 @@ class PersonQuoteListResource(QuoteResourceBase):
     """
 
     ERRORS = {
-        "person_does_not_exist": "Person with slack_user_id {slack_user_id} does not exist",
+        "person_does_not_exist": "Person with user_id {user_id} does not exist",
     }
 
-    def get(self, slack_user_id):
-        person = get_person_by_slack_user_id(slack_user_id)
+    def get(self, user_id):
+        person = get_person(user_id)
 
         if person is None:
             abort(
                 404,
-                message=self.ERRORS["person_does_not_exist"].format(slack_user_id=slack_user_id),
+                message=self.ERRORS["person_does_not_exist"].format(user_id=user_id),
             )
 
-        quotes = get_all_quotes_from_person(slack_user_id)
+        quotes = get_all_quotes_from_person(user_id)
 
         return marshal(quotes, self.fields), 200
 
@@ -285,11 +283,10 @@ class QuoteListResource(QuoteResourceBase):
     """
 
     ERRORS = {
-        "slack_user_id_missing": "slack_user_id is required",
+        "user_id_missing": "user_id is required",
         "content_missing": "content is required",
         "person_does_not_exist": (
-            "Can't add a quote to Person with slack_user_id "
-            "{slack_user_id} because they don't exist."
+            "Can't add a quote to Person with user_id " "{user_id} because they don't exist."
         ),
         "already_exists": (
             "The Quote content provided can't be added because "
@@ -301,11 +298,11 @@ class QuoteListResource(QuoteResourceBase):
         super().__init__(*args, **kwargs)
 
         self.parser.add_argument(
-            "slack_user_id",
-            dest="slack_user_id",
+            "user_id",
+            dest="user_id",
             required=True,
             type=str,
-            help=self.ERRORS.get("slack_user_id_missing"),
+            help=self.ERRORS.get("user_id_missing"),
         )
         self.parser.add_argument(
             "content",
@@ -317,23 +314,21 @@ class QuoteListResource(QuoteResourceBase):
 
     def post(self):
         parsed_args = self.parser.parse_args()
-        slack_user_id = parsed_args.get("slack_user_id")
+        user_id = parsed_args.get("user_id")
         content = parsed_args.get("content")
 
-        target_person = Person.query.filter(Person.slack_user_id == slack_user_id).one_or_none()
+        target_person = get_person(user_id)
 
         if not target_person:
             return abort(
                 404,
-                message=self.ERRORS.get("person_does_not_exist").format(
-                    slack_user_id=slack_user_id
-                ),
+                message=self.ERRORS.get("person_does_not_exist").format(user_id=user_id),
             )
 
         if target_person.has_said(parsed_args.get("content")):
             return abort(
                 409,
-                message=self.ERRORS.get("already_exists").format(slack_user_id=slack_user_id),
+                message=self.ERRORS.get("already_exists").format(user_id=user_id),
             )
 
         data = AddQuoteDTO(target_person, content)
@@ -343,7 +338,7 @@ class QuoteListResource(QuoteResourceBase):
 
 
 api.add_resource(PersonListResource, "/people")
-api.add_resource(PersonResource, "/people/<string:slack_user_id>")
-api.add_resource(PersonQuoteListResource, "/people/<string:slack_user_id>/quotes")
-api.add_resource(PersonQuoteResource, "/people/<string:slack_user_id>/quotes/<string:quote_id>")
+api.add_resource(PersonResource, "/people/<string:user_id>")
+api.add_resource(PersonQuoteListResource, "/people/<string:user_id>/quotes")
+api.add_resource(PersonQuoteResource, "/people/<string:user_id>/quotes/<string:quote_id>")
 api.add_resource(QuoteListResource, "/quotes")

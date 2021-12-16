@@ -57,7 +57,7 @@ def test_get_all_people_with_quotes(num_quotes, client, session):
 def test_get_person(prepared_user, client, session):
     expected_data = get_serialized_person(prepared_user)
 
-    response = client.get(url_for("api.personresource", slack_user_id=prepared_user.slack_user_id))
+    response = client.get(url_for("api.personresource", user_id=prepared_user.slack_user_id))
 
     response_json = response.json
     assert response.status_code == 200
@@ -70,7 +70,7 @@ def test_get_person_with_quotes(prepared_user, num_quotes, client, session):
     expected_result = get_serialized_person(prepared_user, include_quotes=True)
 
     response = client.get(
-        url_for("api.personresource", slack_user_id=prepared_user.slack_user_id, include="quotes")
+        url_for("api.personresource", user_id=prepared_user.slack_user_id, include="quotes")
     )
 
     response_json = response.json
@@ -87,7 +87,7 @@ def test_get_correct_person_by_slack_user_id(prepared_user, client, session):
         and prepared_user.slack_user_id != other_person.slack_user_id
     )
 
-    response = client.get(url_for("api.personresource", slack_user_id=prepared_user.slack_user_id))
+    response = client.get(url_for("api.personresource", user_id=prepared_user.slack_user_id))
 
     response_json = response.json
     assert response.status_code == 200
@@ -102,9 +102,9 @@ def test_get_person_raises_404_if_person_does_not_exist(client, session):
     while slack_user_id_lookup == existing_person.slack_user_id:
         slack_user_id_lookup = mixer.faker.pystr(16)
 
-    expected_error = f"Person with slack_user_id {slack_user_id_lookup} does not exist"
+    expected_error = f"Person with user_id {slack_user_id_lookup} does not exist"
 
-    response = client.get(url_for("api.personresource", slack_user_id=slack_user_id_lookup))
+    response = client.get(url_for("api.personresource", user_id=slack_user_id_lookup))
 
     response_json = response.json
     assert response.status_code == 404
