@@ -8,12 +8,17 @@ from slack_sdk.errors import SlackApiError
 from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
 from nb2.service.exceptions import QuoteAlreadyExistsException
-from nb2.service.person_service import create_person, get_person, get_person_by_quote
+from nb2.service.person_service import (
+    create_person,
+    get_person,
+    get_person_by_quote,
+    update_ghost_user_id,
+)
 from nb2.service.quote_service import (
     add_quote_to_person,
-    has_quotes,
     get_random_quote_from_any_person,
     get_random_quotes_from_person,
+    has_quotes,
 )
 from nb2.service.slack_service import mention_users, trim_mention
 
@@ -168,8 +173,8 @@ class SlackBot:
             ">`nb2 random quote` Digs up a random memory from a random person.\n"
             '>`nb2 remember (that|when) <@person> said "<quote>"` Stores a new quote, to forever '
             "remain in the planes of Nostalgia.\n"
-            ">`nb2 remind (me|<@person>) of <@person>` Digs up a memorable quote from the past, and "
-            "remind the person."
+            ">`nb2 remind (me|<@person>) of <@person>` Digs up a memorable quote from the past, "
+            "and remind the person."
         )
 
         blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": msg}}]
@@ -191,7 +196,7 @@ class SlackBot:
 
         target_user_id = trim_mention(matched.group("user_id"))
         quote = matched.group("quote")
-        person = get_person(target_user_id)
+        person, is_active = get_person(target_user_id)
 
         # The Person doesn't exist, so create a new Person from information fetched
         # from Slack. If the user id could not be found in Slack, create a ghost Person.
@@ -203,7 +208,7 @@ class SlackBot:
                     slack_user_id=target_user_id,
                     first_name=user_profile.get("first_name"),
                     last_name=user_profile.get("last_name"),
-                    ghost_user_id=user_profile.get("display_name"),
+                    ghost_user_id=user_profile.get("display_name") or user_info.get("name"),
                 )
             except SlackApiError:
                 create_person_dto = CreateGhostPersonDTO(
@@ -213,6 +218,9 @@ class SlackBot:
                 )
 
             person = create_person(create_person_dto)
+        else:
+            if is_active:
+                person = self.update_display_name(person)
 
         add_quote_dto = AddQuoteDTO(person=person, content=quote)
 
@@ -243,12 +251,14 @@ class SlackBot:
             person = get_person_by_quote(quote)
             return person, quote
 
-        person = get_person(nostalgia_user_target)
+        person, is_active = get_person(nostalgia_user_target)
 
         # The Person doesn't exist in the database, so return their first name,
         # or the provided nostalgia_user_target with None as the Quote.
         if person is None:
             return nostalgia_user_target, None
+        if is_active:
+            person = self.update_display_name(person)
 
         quote = get_random_quotes_from_person(person)
 
@@ -347,22 +357,29 @@ class SlackBot:
         persons = [get_person(target) for target in nostalgia_user_targets]
 
         unknown_persons = [
-            nostalgia_user_targets[i] for i, person in enumerate(persons) if person is None
+            nostalgia_user_targets[i] for i, person in enumerate(persons) if person[0] is None
         ]
 
         if unknown_persons:
             return self.Result(
-                ok=False, message=f"I don't recognize <@{'>, <@'.join(unknown_persons)}>"
+                ok=False, message=f"I don't remember <@{'>, <@'.join(unknown_persons)}>"
             )
+
+        updated_persons = []
+        for person, is_active in persons:
+            if is_active:
+                person = self.update_display_name(person)
+            updated_persons.append(person)
 
         quotes_by_slack_user_id = {
             person.slack_user_id
             or person.ghost_user_id: get_random_quotes_from_person(person, QUOTES_PER_PERSON)
-            for person in persons
+            for person in updated_persons
         }
 
         names_by_slack_user_id = {
-            person.slack_user_id or person.ghost_user_id: person.first_name for person in persons
+            person.slack_user_id or person.ghost_user_id: person.first_name
+            for person in updated_persons
         }
 
         slack_user_ids_with_no_quotes = [
@@ -372,7 +389,8 @@ class SlackBot:
         ]
 
         if any(slack_user_ids_with_no_quotes):
-            missing_people = ", ".join(f"@<{slack_user_ids_with_no_quotes}>")
+            # TODO / Nice to have: Only @ when it's not a ghost user
+            missing_people = ", ".join(f"<@{user}>" for user in slack_user_ids_with_no_quotes)
             message = f"I don't remember {missing_people}."
             return self.Result(ok=False, message=message)
 
@@ -509,3 +527,14 @@ class SlackBot:
             {} containing Slack user information.
         """
         return self.web_client.users_info(user=slack_user_id).validate().data["user"]
+
+    def update_display_name(self, person: Person):
+        """
+        Update the Person object with their most up-to-date display name.
+        This assumes the person is active and have a slack_user_id.
+
+        Args:
+            person: The Person object to update.
+        """
+        response = self.fetch_user_info(person.slack_user_id)
+        return update_ghost_user_id(person, response["profile"]["display_name"])

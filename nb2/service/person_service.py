@@ -1,6 +1,4 @@
-from typing import Union
-
-from sqlalchemy import func
+from typing import Tuple, Union
 
 from nb2 import db
 from nb2.models import Person, Quote
@@ -19,7 +17,7 @@ def get_all_people():
     return Person.query.all()
 
 
-def get_person(user_id: str):
+def get_person(user_id: str) -> Tuple[Person, bool]:
     """
     Return Person with slack_user_id or ghost_user_id equal to user_id.
 
@@ -27,9 +25,18 @@ def get_person(user_id: str):
         user_id: Either a slack_user_id or a ghost_user_id
 
     Returns:
-        Person object if one exists in the db, otherwise None.
+        A tuple:
+        - First item is the Person object if one exists in the db, otherwise
+        None.
+        - Second item is a boolean: True if the user is referenced via
+        slack_user_id ("active"), and False if it's referenced via
+        ghost_user_id or no Person is found.
     """
-    return get_person_by_slack_user_id(user_id) or get_person_by_ghost_user_id(user_id)
+    slack_user = get_person_by_slack_user_id(user_id)
+    if slack_user:
+        return slack_user, True
+
+    return get_person_by_ghost_user_id(user_id), False
 
 
 def get_person_by_slack_user_id(slack_user_id: str):
@@ -120,3 +127,21 @@ def create_person(data: Union[CreatePersonDTO, CreateGhostPersonDTO]):
     db.session.refresh(new_person)
 
     return new_person
+
+
+def update_ghost_user_id(person: Person, display_name: str):
+    """
+    Update an existing Person object's ghost_user_id.
+
+    Required args:
+        display_name: The new ghost_user_id.
+
+    Returns:
+        Person with a new ghost_user_id.
+    """
+    person.ghost_user_id = display_name
+
+    db.session.commit()
+    db.session.refresh(person)
+
+    return person

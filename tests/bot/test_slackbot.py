@@ -22,6 +22,7 @@ def mock_bot(mocker):
     mock_bot = SlackBot()
     mock_bot.slack_user_id = "UB0T"
     mocker.patch.object(mock_bot, "web_client")
+    mocker.patch.object(mock_bot, "update_display_name", side_effect=lambda person: person)
     return mock_bot
 
 
@@ -463,3 +464,27 @@ def test_is_converse_action_returns_true_on_valid_command(client, session, mock_
 
 def test_is_converse_action_returns_false_if_only_one_target_specified(client, session, mock_bot):
     assert not (mock_bot.is_converse_action("converse <@U1>"))
+
+
+def test_update_display_name_updates_the_ghost_user_id_of_given_person(client, session, mocker):
+    # Get a new bot that doesn't have update_display_name mocked
+    mock_bot = SlackBot()
+    mocker.patch.object(mock_bot, "web_client")
+    mock_nostalgia_person = mixer.blend(
+        Person, slack_user_id=mixer.RANDOM, ghost_user_id="old_name"
+    )
+
+    # Mock the user's API response
+    mock_slack_user_object = {
+        "profile": {
+            "display_name": "new_name",
+        },
+    }
+    mock_response = {"user": mock_slack_user_object}
+    mocker.patch.object(
+        mock_bot.web_client, "users_info", return_value=MockSlackResponse(mock_response)
+    )
+
+    assert mock_nostalgia_person.ghost_user_id == "old_name"
+    mock_bot.update_display_name(mock_nostalgia_person)
+    assert mock_nostalgia_person.ghost_user_id == "new_name"
