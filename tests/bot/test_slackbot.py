@@ -135,17 +135,24 @@ def test_help(client, session, mock_bot):
 def test_remember_creates_new_person_if_they_dont_exist(client, session, mock_bot, mocker):
     mock_slack_user_id = mixer.faker.pystr(10)
     mock_name = mixer.faker.name()
+    first_name, last_name = mock_name.split(" ")
 
     assert Person.query.filter(Person.slack_user_id == mock_slack_user_id).one_or_none() is None
 
     mocker.patch(f"{__name__}.add_quote_to_person")
-    mocker.patch.object(mock_bot, "fetch_user_info", return_value={"real_name": mock_name})
+    mocker.patch.object(
+        mock_bot,
+        "fetch_user_info",
+        return_value={
+            "profile": {"first_name": first_name, "last_name": last_name, "display_name": mock_name}
+        },
+    )
 
     mock_bot.remember(f'remember <@{mock_slack_user_id}> said "Test"')
 
     new_person = Person.query.filter(Person.slack_user_id == mock_slack_user_id).one_or_none()
 
-    assert new_person.first_name == mock_name.split()[0]
+    assert new_person.first_name == first_name
 
 
 def test_remember_adds_quote_to_existing_person(client, session, mock_bot):
@@ -241,7 +248,7 @@ def test_remind_does_not_remember_person_that_doesnt_exist(mocker, client, sessi
     # but is a user in slack that the database doesn't know about
     mock_nostalgia_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     mock_target_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
-    expected_message = f"I don't remember {mock_nostalgia_person.first_name}."
+    expected_message = f"I don't remember <@{mock_nostalgia_person.slack_user_id}>."
 
     session.add(mock_target_person)
     session.commit()
@@ -262,7 +269,7 @@ def test_remind_does_not_remember_person_that_doesnt_exist(mocker, client, sessi
 def test_remind_does_not_remember_person_that_doesnt_have_quotes(mocker, client, session, mock_bot):
     mock_nostalgia_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     mock_target_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
-    expected_message = f"I don't remember {mock_nostalgia_person.first_name}."
+    expected_message = f"I don't remember <@{mock_nostalgia_person.slack_user_id}>."
 
     session.bulk_save_objects([mock_target_person, mock_nostalgia_person])
     session.commit()
@@ -374,7 +381,7 @@ def test_converse_notifies_users_if_person_does_not_exist(client, session, mock_
     )
     message = result.message
 
-    assert message == f"I don't recognize {non_existent_id1}, {non_existent_id2}"
+    assert message == f"I don't recognize <@{non_existent_id1}>, <@{non_existent_id2}>"
 
 
 def test_is_remember_action_returns_true_on_valid_command(client, session, mock_bot):

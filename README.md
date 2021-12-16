@@ -9,7 +9,7 @@ Nostalgiabot II is the sequel to Nostalgiabot, originally written by Martin Petk
 ## Tech Stack
 NB2 is a simple Flask app. You should be familiar with these technologies:
 
-- [Python](https://www.python.org/), specifically 3.6
+- [Python](https://www.python.org/), specifically 3.8
 - [Flask](https://flask.palletsprojects.com/en/1.1.x/)
 - [Flask-RESTful](https://flask-restful.readthedocs.io/en/latest/)
 
