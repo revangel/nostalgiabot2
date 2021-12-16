@@ -382,7 +382,7 @@ def test_converse_notifies_users_if_person_does_not_exist(client, session, mock_
     )
     message = result.message
 
-    assert message == f"I don't recognize <@{non_existent_id1}>, <@{non_existent_id2}>"
+    assert message == f"I don't remember <@{non_existent_id1}>, <@{non_existent_id2}>"
 
 
 def test_is_remember_action_returns_true_on_valid_command(client, session, mock_bot):
