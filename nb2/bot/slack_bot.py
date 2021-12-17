@@ -4,16 +4,12 @@ from typing import Tuple, Union
 
 from slack import WebClient
 from slack_sdk.errors import SlackApiError
+from sqlalchemy.orm.exc import MultipleResultsFound
 
 from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
 from nb2.service.exceptions import QuoteAlreadyExistsException
-from nb2.service.person_service import (
-    create_person,
-    get_person,
-    get_person_by_quote,
-    update_ghost_user_id,
-)
+from nb2.service.person_service import create_person, get_person, get_person_by_quote, update_person
 from nb2.service.quote_service import (
     add_quote_to_person,
     get_random_quote_from_any_person,
@@ -34,24 +30,24 @@ class SlackBot:
     #   message: (str) text to send back to the Slack client.
     Result = namedtuple("Result", ["ok", "message"])
 
-    # remember (that|when) <ghost_user_id|slack_user_id> said "some quote"
+    # remember (that|when) <slack_user_id|display_name|ghost_user_id> said "some quote"
     REMEMBER_REGEX = (
         '^remember\\s+((that\\s+)|(when\\s+))?(?P<user_id>\\w+|<@\\w+>)\\s+said\\s+"(?P<quote>.*)"$'
     )
 
-    # remind (me | <@user_id_to_remind>+ ) of <ghost_user_id_to_quote|slack_user_id_to_quote>
+    # remind (me | <@user_id_to_remind>+ ) of <slack_user_id|display_name|ghost_user_id>
     REMIND_REGEX = (
         "^remind\\s+(?P<slack_user_targets>me|(<@\\w+>\\s*)+)\\s+"
         "of\\s+(?P<nostalgia_user_target>\\w+|<@\\w+>)$"
     )
 
-    # quote <ghost_user_id_to_quote|slack_user_id_to_quote>
+    # quote <slack_user_id|display_name|ghost_user_id>
     QUOTE_REGEX = "^quote\\s+(?P<nostalgia_user_target>\\w+|<@\\w+>)$"
 
     # random quote
     RANDOM_REGEX = "^random\\s+quote$"
 
-    # converse <ghost_user_id_to_quote|slack_user_id_to_quote>{2,}
+    # converse <slack_user_id|display_name|ghost_user_id>{2,}
     CONVERSE_REGEX = (
         "^converse\\s+(?P<nostalgia_user_targets>(\\w+|<@\\w+>)(,\\s*(\\w+|<@\\w+>))+)$"
     )
@@ -196,7 +192,20 @@ class SlackBot:
 
         target_user_id = trim_mention(matched.group("user_id"))
         quote = matched.group("quote")
-        person, is_active = get_person(target_user_id)
+
+        try:
+            person, is_active = get_person(target_user_id)
+        except MultipleResultsFound:
+            return self.Result(
+                ok=True,
+                message=(
+                    f"I know more than one person under the name {target_user_id}. ",
+                    # TODO: We could get the first of the duplicates and use their
+                    # actual username instead of jeff bezos here
+                    "Please specify them by their username in the format of ",
+                    '"initial + last name)" (e.g. jbezos)',
+                ),
+            )
 
         # The Person doesn't exist, so create a new Person from information fetched
         # from Slack. If the user id could not be found in Slack, create a ghost Person.
@@ -208,7 +217,8 @@ class SlackBot:
                     slack_user_id=target_user_id,
                     first_name=user_profile.get("first_name"),
                     last_name=user_profile.get("last_name"),
-                    ghost_user_id=user_profile.get("display_name") or user_info.get("name"),
+                    display_name=user_profile.get("display_name") or user_profile.get("real_name"),
+                    ghost_user_id=user_info.get("name"),
                 )
             except SlackApiError:
                 create_person_dto = CreateGhostPersonDTO(
@@ -220,7 +230,7 @@ class SlackBot:
             person = create_person(create_person_dto)
         else:
             if is_active:
-                person = self.update_display_name(person)
+                person = self.update_person(person)
 
         add_quote_dto = AddQuoteDTO(person=person, content=quote)
 
@@ -237,7 +247,7 @@ class SlackBot:
         If no user is specified, pick a random Quote and return that user and quote.
 
         Args:
-            nostalgia_user_target: string representing slack_user_id or ghost_user_id
+            nostalgia_user_target: string representing slack_user_id, ghost_user_id or display_name
                                    for Person to retrieve quote.
                                    If not provided, this will return a random quote from
                                    a random Person.
@@ -258,7 +268,7 @@ class SlackBot:
         if person is None:
             return nostalgia_user_target, None
         if is_active:
-            person = self.update_display_name(person)
+            person = self.update_person(person)
 
         quote = get_random_quotes_from_person(person)
 
@@ -284,7 +294,17 @@ class SlackBot:
 
         nostalgia_user_target = trim_mention(matched.group("nostalgia_user_target"))
 
-        person, quote = self._random_quote(nostalgia_user_target)
+        try:
+            person, quote = self._random_quote(nostalgia_user_target)
+        except MultipleResultsFound:
+            return self.Result(
+                ok=True,
+                message=(
+                    f"I know more than one person under the name {nostalgia_user_target}. ",
+                    'Please specify them by their username in the format of "initial + last name"',
+                    "(e.g. jbezos)",
+                ),
+            )
 
         if quote is None:
             return self.Result(ok=True, message=f"I don't remember <@{person}>.")
@@ -308,7 +328,17 @@ class SlackBot:
         slack_user_targets = trim_mention(matched.group("slack_user_targets").split())
         nostalgia_user_target = trim_mention(matched.group("nostalgia_user_target"))
 
-        person, quote = self._random_quote(nostalgia_user_target)
+        try:
+            person, quote = self._random_quote(nostalgia_user_target)
+        except MultipleResultsFound:
+            return self.Result(
+                ok=True,
+                message=(
+                    f"I know more than one person under the name {nostalgia_user_target}. ",
+                    'Please specify them by their username in the format of "initial + last name"',
+                    "(e.g. jbezos)",
+                ),
+            )
 
         if quote is None:
             return self.Result(ok=True, message=f"I don't remember <@{person}>.")
@@ -348,6 +378,10 @@ class SlackBot:
         - There must be at least two target users in nostalgia_user_targets
         - The above is already verified by is_converse_action, however.
         """
+
+        def get_person_repr(person: Person) -> str:
+            return person.slack_user_id or person.display_name or person.ghost_user_id
+
         QUOTES_PER_PERSON = 2
         matched = re.match(self.CONVERSE_REGEX, message, re.I)
 
@@ -368,18 +402,16 @@ class SlackBot:
         updated_persons = []
         for person, is_active in persons:
             if is_active:
-                person = self.update_display_name(person)
+                person = self.update_person(person)
             updated_persons.append(person)
 
         quotes_by_slack_user_id = {
-            person.slack_user_id
-            or person.ghost_user_id: get_random_quotes_from_person(person, QUOTES_PER_PERSON)
+            get_person_repr(person): get_random_quotes_from_person(person, QUOTES_PER_PERSON)
             for person in updated_persons
         }
 
         names_by_slack_user_id = {
-            person.slack_user_id or person.ghost_user_id: person.first_name
-            for person in updated_persons
+            get_person_repr(person): person.first_name for person in updated_persons
         }
 
         slack_user_ids_with_no_quotes = [
@@ -528,7 +560,7 @@ class SlackBot:
         """
         return self.web_client.users_info(user=slack_user_id).validate().data["user"]
 
-    def update_display_name(self, person: Person):
+    def update_person(self, person: Person):
         """
         Update the Person object with their most up-to-date display name.
         This assumes the person is active and have a slack_user_id.
@@ -537,4 +569,9 @@ class SlackBot:
             person: The Person object to update.
         """
         response = self.fetch_user_info(person.slack_user_id)
-        return update_ghost_user_id(person, response["profile"]["display_name"])
+        return update_person(
+            person,
+            first_name=response["profile"]["first_name"],
+            last_name=response["profile"]["last_name"],
+            display_name=response["profile"]["display_name"],
+        )

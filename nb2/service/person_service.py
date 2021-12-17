@@ -31,13 +31,13 @@ def get_person(user_id: str) -> Tuple[Person, bool]:
         None.
         - Second item is a boolean: True if the user is referenced via
         slack_user_id ("active"), and False if it's referenced via
-        ghost_user_id or no Person is found.
+        display name or ghost_user_id, or no Person is found.
     """
     slack_user = get_person_by_slack_user_id(user_id)
     if slack_user:
         return slack_user, True
 
-    return get_person_by_ghost_user_id(user_id), False
+    return get_person_by_display_name(user_id) or get_person_by_ghost_user_id(user_id), False
 
 
 def get_person_by_slack_user_id(slack_user_id: str):
@@ -52,6 +52,20 @@ def get_person_by_slack_user_id(slack_user_id: str):
         None if no such person exists.
     """
     return Person.query.filter_by(slack_user_id=slack_user_id).one_or_none()
+
+
+def get_person_by_display_name(display_name: str):
+    """
+    Return Person with ghost_user_id if it exists.
+
+    Required Args:
+        ghost_user_id: String representing the unique ghost name for a Person.
+
+    Returns:
+        Person object if one exists in the db with ghost_user_id
+        None if no such person exists.
+    """
+    return Person.query.filter_by(display_name=display_name).one_or_none()
 
 
 def get_person_by_ghost_user_id(ghost_user_id: str):
@@ -115,12 +129,15 @@ def create_person(data: Union[CreatePersonDTO, CreateGhostPersonDTO]):
 
     slack_user_id = getattr(data, "slack_user_id", None)
     ghost_user_id = getattr(data, "ghost_user_id", None)
+    # ghosts don't have a display_name, so we use their ghost_user_id
+    display_name = getattr(data, "display_name", ghost_user_id)
 
     new_person = Person(
         slack_user_id=slack_user_id,
         ghost_user_id=ghost_user_id,
         first_name=data.first_name,
         last_name=data.last_name,
+        display_name=display_name,
     )
 
     db.session.add(new_person)
@@ -130,17 +147,21 @@ def create_person(data: Union[CreatePersonDTO, CreateGhostPersonDTO]):
     return new_person
 
 
-def update_ghost_user_id(person: Person, display_name: str):
+def update_person(person: Person, **kwargs):
     """
-    Update an existing Person object's ghost_user_id.
+    Update an existing Person object's display_name.
 
     Required args:
-        display_name: The new ghost_user_id.
+        display_name: The new display_name.
 
     Returns:
-        Person with a new ghost_user_id.
+        The same Person object with a new display_name.
     """
-    person.ghost_user_id = display_name
+    person.first_name = kwargs.get("first_name", person.display_name)
+    person.last_name = kwargs.get("last_name", person.display_name)
+    person.display_name = kwargs.get("display_name", person.display_name)
+    person.slack_user_id = kwargs.get("slack_user_id", person.slack_user_id)
+    person.ghost_user_id = kwargs.get("ghost_user_id", person.ghost_user_id)
 
     db.session.commit()
     db.session.refresh(person)

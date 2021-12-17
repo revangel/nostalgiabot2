@@ -12,14 +12,17 @@ class Person(db.Model):
 
     Most Persons will have a slack_user_id if they still have a Slack account
     where the bot is deployed. For non-Slack users, called Ghost Person,
-    a ghost_user_id is used to refer to the Person.
+    a ghost_user_id is used to refer to the Person. This should be the username
+    of their email. All users should have a display_name.
     """
 
-    # A Person must have either a slack_user_id OR a ghost_user_id
+    # A Person must have either a slack_user_id OR a ghost_user_id OR a display_name
     # Some Persons may have both if they were a slack user at some point
     # that has since been deactivated. Those deactivated Persons should be
     # assigned a ghost_user_id to keep accessing their quotes.
-    __table_args__ = (CheckConstraint("NOT(slack_user_id IS NULL AND ghost_user_id IS NULL)"),)
+    __table_args__ = (
+        CheckConstraint("COALESCE(slack_user_id, ghost_user_id, display_name) IS NOT NULL"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     slack_user_id = db.Column(
@@ -34,6 +37,10 @@ class Person(db.Model):
     )
     first_name = db.Column(db.String(32), nullable=False)
     last_name = db.Column(db.String(32))
+    display_name = db.Column(
+        db.String(80),
+        index=True,
+    )
     quotes = db.relationship("Quote", backref="person", lazy=True)
 
     def __repr__(self):

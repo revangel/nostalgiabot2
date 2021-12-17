@@ -37,6 +37,7 @@ class CreatePersonDTO(BaseDTO):
     first_name: str
     last_name: str = None
     ghost_user_id: str = None
+    display_name: str = None
 
 
 @dataclass

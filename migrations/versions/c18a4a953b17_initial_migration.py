@@ -24,12 +24,14 @@ def upgrade():
         sa.Column("ghost_user_id", sa.String(length=16), nullable=True),
         sa.Column("first_name", sa.String(length=32), nullable=False),
         sa.Column("last_name", sa.String(length=32), nullable=True),
-        sa.CheckConstraint("NOT(slack_user_id IS NULL AND ghost_user_id IS NULL)"),
+        sa.Column("display_name", sa.String(length=80), nullable=True),
+        sa.CheckConstraint("COALESCE(slack_user_id, ghost_user_id, display_name) IS NOT NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
     with op.batch_alter_table("person", schema=None) as batch_op:
         batch_op.create_index(batch_op.f("ix_person_ghost_user_id"), ["ghost_user_id"], unique=True)
         batch_op.create_index(batch_op.f("ix_person_slack_user_id"), ["slack_user_id"], unique=True)
+        batch_op.create_index(batch_op.f("ix_person_display_name"), ["display_name"], unique=False)
 
     op.create_table(
         "quote",
@@ -52,6 +54,7 @@ def downgrade():
     with op.batch_alter_table("person", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_person_slack_user_id"))
         batch_op.drop_index(batch_op.f("ix_person_ghost_user_id"))
+        batch_op.drop_index(batch_op.f("ix_person_display_name"))
 
     op.drop_table("person")
     # ### end Alembic commands ###
