@@ -106,7 +106,7 @@ class PersonResource(PersonResourceBase):
     ERRORS = {"does_not_exist": "Person with user_id {user_id} does not exist"}
 
     def get(self, user_id):
-        person = get_person(user_id)
+        person, is_active = get_person(user_id)
 
         if person is None:
             abort(404, message=self.ERRORS["does_not_exist"].format(user_id=user_id))
@@ -229,7 +229,7 @@ class PersonQuoteResource(QuoteResourceBase):
     }
 
     def get(self, user_id, quote_id):
-        person = get_person(user_id)
+        person, is_active = get_person(user_id)
 
         if person is None:
             abort(
@@ -249,6 +249,15 @@ class PersonQuoteResource(QuoteResourceBase):
 
         return marshal(quote, self.fields), 200
 
+    # def delete(self, user_id, quote_id):
+    #     person, is_active = get_person(user_id)
+
+    #     if person is None:
+    #         abort(
+    #             404,
+    #             message=self.ERRORS["person_does_not_exist"].format(user_id=user_id),
+    #         )
+
 
 class PersonQuoteListResource(QuoteResourceBase):
     """
@@ -262,7 +271,7 @@ class PersonQuoteListResource(QuoteResourceBase):
     }
 
     def get(self, user_id):
-        person = get_person(user_id)
+        person, is_active = get_person(user_id)
 
         if person is None:
             abort(
@@ -317,7 +326,7 @@ class QuoteListResource(QuoteResourceBase):
         user_id = parsed_args.get("user_id")
         content = parsed_args.get("content")
 
-        target_person = get_person(user_id)
+        target_person, is_active = get_person(user_id)
 
         if not target_person:
             return abort(
