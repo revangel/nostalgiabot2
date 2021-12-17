@@ -3,7 +3,13 @@ from flask_restful import Api, Resource, abort, fields, marshal, reqparse
 from sqlalchemy.exc import IntegrityError
 
 from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
-from nb2.service.person_service import create_person, get_all_people, get_person, remove_user
+from nb2.service.person_service import (
+    create_person,
+    get_all_people,
+    get_person,
+    remove_user,
+    update_person,
+)
 from nb2.service.quote_service import (
     add_quote_to_person,
     delete_quote,
@@ -104,7 +110,34 @@ class PersonResource(PersonResourceBase):
     person by a `slack_user_id`.
     """
 
-    ERRORS = {"does_not_exist": "Person with user_id {user_id} does not exist"}
+    ERRORS = {
+        "does_not_exist": "Person with user_id {user_id} does not exist",
+        "already_exists": "Person with id {user_id} already exists",
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.parser.add_argument(
+            "slack_user_id",
+            dest="slack_user_id",
+            type=str,
+        )
+        self.parser.add_argument(
+            "first_name",
+            dest="first_name",
+            type=str,
+        )
+        self.parser.add_argument(
+            "last_name",
+            dest="last_name",
+            type=str,
+        )
+        self.parser.add_argument(
+            "ghost_user_id",
+            dest="ghost_user_id",
+            type=str,
+        )
 
     def get(self, user_id):
         person, is_active = get_person(user_id)
@@ -123,6 +156,36 @@ class PersonResource(PersonResourceBase):
         remove_user(person)
 
         return None, 204
+
+    def patch(self, user_id):
+        person, is_active = get_person(user_id)
+
+        if person is None:
+            abort(404, message=self.ERRORS["does_not_exist"].format(user_id=user_id))
+
+        parsed_args = self.parser.parse_args()
+        kwargs = {
+            "first_name": parsed_args.get("first_name") or person.first_name,
+            "last_name": parsed_args.get("last_name") or person.last_name,
+        }
+
+        # If is_active then they were referenced by slack_id and that shouldn't be edittable
+        # otherwise ghost_id shouldn't be edittable
+        if is_active:
+            kwargs["ghost_user_id"] = parsed_args.get("ghost_user_id") or person.ghost_user_id
+        else:
+            kwargs["slack_user_id"] = parsed_args.get("slack_user_id") or person.slack_user_id
+
+        try:
+            updated_person = update_person(person, **kwargs)
+        except IntegrityError:
+            id = kwargs.get("ghost_user_id") or kwargs.get("slack_user_id")
+            return abort(
+                409,
+                message=self.ERRORS.get("already_exists").format(user_id=id),
+            )
+
+        return marshal(updated_person, self.fields), 200
 
 
 class PersonListResource(PersonResourceBase):

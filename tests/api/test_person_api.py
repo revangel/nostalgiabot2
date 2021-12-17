@@ -191,3 +191,57 @@ def test_delete_raises_404_if_person_does_not_exist(client, session):
     response_json = response.json
     assert response.status_code == 404
     assert response_json.get("message") == expected_error
+
+
+@pytest.mark.parametrize("field", ["last_name", "first_name", "ghost_user_id"])
+def test_edit_person_details(field, prepared_user, client, session):
+    data = {
+        field: "edited field",
+    }
+
+    response = client.patch(
+        url_for("api.personresource", user_id=prepared_user.slack_user_id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert response_json.get(field) == data.get(field)
+
+
+def test_edit_person_slack_id_is_ignored_if_used_in_url(prepared_user, client, session):
+    data = {
+        "slack_user_id": "edited",
+    }
+
+    response = client.patch(
+        url_for("api.personresource", user_id=prepared_user.slack_user_id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert response_json.get("slack_user_id") != data.get("slack_user_id")
+
+
+def test_edit_person_ghost_id_to_create_duplicate(client, session):
+    # Existing user
+    mixer.blend(Person, slack_user_id=mixer.RANDOM, ghost_user_id="Foo")
+
+    person_to_edit = mixer.blend(Person, slack_user_id=mixer.RANDOM)
+    data = {
+        "ghost_user_id": "Foo",
+    }
+    expected_error = f"Person with id {data['ghost_user_id']} already exists"
+
+    response = client.patch(
+        url_for("api.personresource", user_id=person_to_edit.slack_user_id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 409
+    assert response_json.get("message") == expected_error
