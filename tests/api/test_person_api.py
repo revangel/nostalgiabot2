@@ -169,3 +169,25 @@ def test_cannot_create_person_with_missing_required_fields(field, client, sessio
     response_json = response.json
     assert response.status_code == 400
     assert response_json.get("message") == expected_error
+
+
+def test_delete_person(client, session, prepared_user):
+    response = client.delete(
+        url_for(
+            "api.personresource",
+            user_id=prepared_user.slack_user_id,
+        )
+    )
+
+    assert response.status_code == 204
+
+
+def test_delete_raises_404_if_person_does_not_exist(client, session):
+    user_id = "foo"
+    expected_error = f"Person with user_id {user_id} does not exist"
+
+    response = client.delete(url_for("api.personresource", user_id=user_id))
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error

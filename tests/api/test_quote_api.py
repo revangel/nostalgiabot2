@@ -140,3 +140,46 @@ def test_cannot_create_duplicate_quote(client, session, prepared_user):
         "The Quote content provided can't be added because it already exists for this Person."
     )
     assert response.json.get("message") == expected_error_msg
+
+
+def test_delete_quote(client, session, prepared_quote):
+    response = client.delete(
+        url_for(
+            "api.personquoteresource",
+            user_id=prepared_quote.person.slack_user_id,
+            quote_id=prepared_quote.id,
+        )
+    )
+
+    assert response.status_code == 204
+
+
+def test_delete_raises_404_if_quote_does_not_exist(client, prepared_user):
+    quote_id = 1
+    expected_error = (
+        f"Quote with id {quote_id} does not exist for person "
+        f"with user_id {prepared_user.slack_user_id}"
+    )
+
+    response = client.delete(
+        url_for(
+            "api.personquoteresource",
+            user_id=prepared_user.slack_user_id,
+            quote_id=quote_id,
+        )
+    )
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
+def test_delete_raises_404_if_person_does_not_exist(client, session):
+    user_id = "foo"
+    expected_error = f"Person with user_id {user_id} does not exist"
+
+    response = client.delete(url_for("api.personquoteresource", user_id=user_id, quote_id=1))
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error

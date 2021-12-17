@@ -8,12 +8,12 @@ from nb2.service.dtos import AddQuoteDTO
 from nb2.service.exceptions import EmptyRequiredFieldException, QuoteAlreadyExistsException
 
 
-def get_quote_from_person(slack_user_id: str, quote_id: int):
+def get_quote_from_person(person: Person, quote_id: int):
     """
     Get a Quote from a Person.
 
     Required Args:
-        slack_user_id: String representing the unique Slack identifier for a Person.
+        person: A Person.
         quote_id: The primary key of a Quote.
 
     Returns:
@@ -22,7 +22,7 @@ def get_quote_from_person(slack_user_id: str, quote_id: int):
     return (
         Quote.query.filter(Quote.id == quote_id)
         .join(Person)
-        .filter(Person.slack_user_id == slack_user_id)
+        .filter(Person.id == person.id)
         .one_or_none()
     )
 
@@ -71,7 +71,7 @@ def get_random_quotes_from_person(person: Person, num_quotes: int = 1) -> List[Q
     )
 
 
-def get_all_quotes_from_person(slack_user_id: str):
+def get_all_quotes_from_person(person: Person):
     """
     Get all Quote from a Person.
 
@@ -81,7 +81,7 @@ def get_all_quotes_from_person(slack_user_id: str):
     Returns:
         A list of Quote objects.
     """
-    return Quote.query.join(Person).filter(Person.slack_user_id == slack_user_id).all()
+    return Quote.query.join(Person).filter(Person.id == person.id).all()
 
 
 def add_quote_to_person(data: AddQuoteDTO):
@@ -128,3 +128,14 @@ def add_quote_to_person(data: AddQuoteDTO):
     db.session.refresh(new_quote)
 
     return new_quote
+
+
+def delete_quote(quote: Quote):
+    """
+    Remove a Quote from the db.
+
+    Required args:
+        quote: A Quote.
+    """
+    db.session.delete(quote)
+    db.session.commit()

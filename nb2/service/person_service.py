@@ -4,6 +4,7 @@ from nb2 import db
 from nb2.models import Person, Quote
 from nb2.service.dtos import CreateGhostPersonDTO, CreatePersonDTO
 from nb2.service.exceptions import EmptyRequiredFieldException
+from nb2.service.quote_service import get_all_quotes_from_person
 
 
 def get_all_people():
@@ -145,3 +146,17 @@ def update_ghost_user_id(person: Person, display_name: str):
     db.session.refresh(person)
 
     return person
+
+
+def remove_user(person: Person):
+    """
+    Remove a Person and their quotes from the db.
+
+    Required args:
+        person: A Person.
+    """
+    for quote in get_all_quotes_from_person(person):
+        db.session.delete(quote)
+
+    db.session.delete(person)
+    db.session.commit()

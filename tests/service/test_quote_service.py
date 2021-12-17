@@ -6,6 +6,7 @@ from nb2.service.dtos import AddQuoteDTO
 from nb2.service.exceptions import EmptyRequiredFieldException, QuoteAlreadyExistsException
 from nb2.service.quote_service import (
     add_quote_to_person,
+    delete_quote,
     get_all_quotes_from_person,
     get_quote_from_person,
     get_random_quotes_from_person,
@@ -16,7 +17,7 @@ def test_get_quote_from_person(client, session):
     person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     expected_quote = mixer.blend(Quote, person=person)
 
-    actual_quote = get_quote_from_person(person.slack_user_id, expected_quote.id)
+    actual_quote = get_quote_from_person(person, expected_quote.id)
 
     assert actual_quote == expected_quote
 
@@ -47,7 +48,7 @@ def test_get_all_quotes_from_person(num_quotes, client, session):
     person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     expected_quotes = mixer.cycle(num_quotes).blend(Quote, person=person)
 
-    actual_quotes = get_all_quotes_from_person(person.slack_user_id)
+    actual_quotes = get_all_quotes_from_person(person)
 
     assert actual_quotes == expected_quotes
 
@@ -80,3 +81,14 @@ def test_quote_service_raises_exception_if_required_fields_are_empty(client, ses
 
     with pytest.raises(EmptyRequiredFieldException):
         add_quote_to_person(data)
+
+
+def test_delete_quote(client, session):
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
+    quote = mixer.blend(Quote, person=person)
+
+    assert len(Quote.query.all()) == 1
+
+    delete_quote(quote)
+
+    assert len(Quote.query.all()) == 0

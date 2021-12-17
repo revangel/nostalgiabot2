@@ -3,9 +3,10 @@ from flask_restful import Api, Resource, abort, fields, marshal, reqparse
 from sqlalchemy.exc import IntegrityError
 
 from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
-from nb2.service.person_service import create_person, get_all_people, get_person
+from nb2.service.person_service import create_person, get_all_people, get_person, remove_user
 from nb2.service.quote_service import (
     add_quote_to_person,
+    delete_quote,
     get_all_quotes_from_person,
     get_quote_from_person,
 )
@@ -112,6 +113,16 @@ class PersonResource(PersonResourceBase):
             abort(404, message=self.ERRORS["does_not_exist"].format(user_id=user_id))
 
         return marshal(person, self.fields), 200
+
+    def delete(self, user_id):
+        person, is_active = get_person(user_id)
+
+        if person is None:
+            abort(404, message=self.ERRORS["does_not_exist"].format(user_id=user_id))
+
+        remove_user(person)
+
+        return None, 204
 
 
 class PersonListResource(PersonResourceBase):
@@ -237,7 +248,7 @@ class PersonQuoteResource(QuoteResourceBase):
                 message=self.ERRORS["person_does_not_exist"].format(user_id=user_id),
             )
 
-        quote = get_quote_from_person(user_id, quote_id)
+        quote = get_quote_from_person(person, quote_id)
 
         if quote is None:
             abort(
@@ -249,14 +260,28 @@ class PersonQuoteResource(QuoteResourceBase):
 
         return marshal(quote, self.fields), 200
 
-    # def delete(self, user_id, quote_id):
-    #     person, is_active = get_person(user_id)
+    def delete(self, user_id, quote_id):
+        person, is_active = get_person(user_id)
 
-    #     if person is None:
-    #         abort(
-    #             404,
-    #             message=self.ERRORS["person_does_not_exist"].format(user_id=user_id),
-    #         )
+        if person is None:
+            abort(
+                404,
+                message=self.ERRORS["person_does_not_exist"].format(user_id=user_id),
+            )
+
+        quote = get_quote_from_person(person, quote_id)
+
+        if quote is None:
+            abort(
+                404,
+                message=self.ERRORS["quote_does_not_exist"].format(
+                    quote_id=quote_id, user_id=user_id
+                ),
+            )
+
+        delete_quote(quote)
+
+        return None, 204
 
 
 class PersonQuoteListResource(QuoteResourceBase):
@@ -279,7 +304,7 @@ class PersonQuoteListResource(QuoteResourceBase):
                 message=self.ERRORS["person_does_not_exist"].format(user_id=user_id),
             )
 
-        quotes = get_all_quotes_from_person(user_id)
+        quotes = get_all_quotes_from_person(person)
 
         return marshal(quotes, self.fields), 200
 
