@@ -183,3 +183,89 @@ def test_delete_raises_404_if_person_does_not_exist(client, session):
     response_json = response.json
     assert response.status_code == 404
     assert response_json.get("message") == expected_error
+
+
+def test_edit_quote_person(client, session, prepared_quote, prepared_user):
+    data = {
+        "user_id": prepared_user.slack_user_id,
+    }
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=prepared_quote.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert response_json.get("person_id") == prepared_user.id
+
+
+def test_edit_quote_content(client, session, prepared_quote):
+    data = {
+        "content": "edited field",
+    }
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=prepared_quote.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert response_json.get("content") == data.get("content")
+
+
+def test_edit_raises_404_if_person_does_not_exist(client, session, prepared_quote):
+    user_id = "foo"
+    data = {
+        "user_id": user_id,
+    }
+    expected_error = f"Can't add a quote to Person with user_id {user_id} because they don't exist."
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=prepared_quote.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
+def test_edit_raises_404_if_quote_does_not_exist(client, session):
+    pass
+
+
+def test_edit_raises_404_if_a_quote_with_the_same_content_already_exists_for_that_person(
+    client, session
+):
+    pass
+
+
+def test_get_quote_by_id_raises_404_if_quote_does_not_exist(client, session):
+    quote_id = 1
+    expected_error = "Can't find a quote with quote_id " f"{quote_id} because it don't exist."
+
+    response = client.get(url_for("api.quoteresource", quote_id=quote_id))
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
+def test_get_quote_by_id(client, session, prepared_quote):
+    expected_data = get_serialized_quote(prepared_quote)
+
+    response = client.get(
+        url_for(
+            "api.quoteresource",
+            quote_id=prepared_quote.id,
+        )
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert response_json == expected_data
