@@ -139,3 +139,35 @@ def delete_quote(quote: Quote):
     """
     db.session.delete(quote)
     db.session.commit()
+
+
+def update_quote(quote: Quote, **kwargs):
+    """
+    Update an existing Quote object's person or content.
+
+    Required args:
+        quote: The quote object we wish to update
+
+    Returns:
+        The same Quote object with a new content or person.
+    """
+    quote.content = kwargs.get("content", quote.content)
+    quote.person_id = kwargs.get("person_id", quote.person_id)
+
+    db.session.commit()
+    db.session.refresh(quote)
+
+    return quote
+
+
+def get_quote(quote_id: int):
+    """
+    Get a Quote.
+
+    Required Args:
+        quote_id: The primary key of a Quote.
+
+    Returns:
+        A single Quote object if it exists, else None.
+    """
+    return Quote.query.filter(Quote.id == quote_id).one_or_none()

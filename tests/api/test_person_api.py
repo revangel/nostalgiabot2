@@ -14,6 +14,7 @@ def get_serialized_person(person, include_quotes=False):
         "first_name": person.first_name,
         "last_name": person.last_name,
         "ghost_user_id": None,
+        "display_name": None,
     }
 
     if include_quotes:

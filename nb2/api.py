@@ -7,6 +7,7 @@ from nb2.service.person_service import (
     create_person,
     get_all_people,
     get_person,
+    get_person_by_quote,
     remove_user,
     update_person,
 )
@@ -14,7 +15,9 @@ from nb2.service.quote_service import (
     add_quote_to_person,
     delete_quote,
     get_all_quotes_from_person,
+    get_quote,
     get_quote_from_person,
+    update_quote,
 )
 
 bp = Blueprint("api", __name__)
@@ -91,6 +94,7 @@ class PersonResourceBase(Resource, IncludeFilterMixin):
             "first_name": fields.String,
             "last_name": fields.String,
             "ghost_user_id": fields.String,
+            "display_name": fields.String,
         }
 
         self.parser = reqparse.RequestParser(bundle_errors=True)
@@ -138,6 +142,11 @@ class PersonResource(PersonResourceBase):
             dest="ghost_user_id",
             type=str,
         )
+        self.parser.add_argument(
+            "display_name",
+            dest="display_name",
+            type=str,
+        )
 
     def get(self, user_id):
         person, is_active = get_person(user_id)
@@ -167,6 +176,7 @@ class PersonResource(PersonResourceBase):
         kwargs = {
             "first_name": parsed_args.get("first_name") or person.first_name,
             "last_name": parsed_args.get("last_name") or person.last_name,
+            "display_name": parsed_args.get("display_name") or person.display_name,
         }
 
         # If is_active then they were referenced by slack_id and that shouldn't be edittable
@@ -230,6 +240,11 @@ class PersonListResource(PersonResourceBase):
             type=str,
             help=self.ERRORS.get("ghost_user_id_missing"),
         )
+        self.parser.add_argument(
+            "display_name",
+            dest="display_name",
+            type=str,
+        )
 
     def get(self):
         people = get_all_people()
@@ -241,6 +256,7 @@ class PersonListResource(PersonResourceBase):
         first_name = parsed_args.get("first_name")
         last_name = parsed_args.get("last_name")
         ghost_user_id = parsed_args.get("ghost_user_id")
+        display_name = parsed_args.get("display_name")
 
         if slack_user_id:
             create_person_dto = CreatePersonDTO(
@@ -248,6 +264,7 @@ class PersonListResource(PersonResourceBase):
                 first_name=first_name,
                 last_name=last_name,
                 ghost_user_id=ghost_user_id,
+                display_name=display_name,
             )
         else:
             create_person_dto = CreateGhostPersonDTO(
@@ -434,8 +451,97 @@ class QuoteListResource(QuoteResourceBase):
         return marshal(new_quote, self.fields), 201
 
 
+class QuoteResource(QuoteResourceBase):
+    """
+    Implements the API methods for operating on singular Quotes.
+    """
+
+    ERRORS = {
+        "user_id_missing": "user_id is required",
+        "content_missing": "content is required",
+        "person_does_not_exist": (
+            "Can't add a quote to Person with user_id " "{user_id} because they don't exist."
+        ),
+        "quote_does_not_exist": (
+            "Can't find a quote with quote_id " "{quote_id} because it don't exist."
+        ),
+        "already_exists": (
+            "The Quote content provided can't be added because "
+            "it already exists for this Person."
+        ),
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.parser.add_argument(
+            "user_id",
+            dest="user_id",
+            type=str,
+            help=self.ERRORS.get("user_id_missing"),
+        )
+        self.parser.add_argument(
+            "content",
+            dest="content",
+            type=str,
+            help=self.ERRORS.get("content_missing"),
+        )
+
+    def get(self, quote_id):
+        quote = get_quote(quote_id)
+
+        if quote is None:
+            abort(
+                404,
+                message=self.ERRORS["quote_does_not_exist"].format(quote_id=quote_id),
+            )
+        return marshal(quote, self.fields), 200
+
+    def patch(self, quote_id):
+        quote = get_quote(quote_id)
+        if quote is None:
+            abort(
+                404,
+                message=self.ERRORS["quote_does_not_exist"].format(quote_id=quote_id),
+            )
+
+        parsed_args = self.parser.parse_args()
+        user_id = parsed_args.get("user_id")
+        content = parsed_args.get("content")
+
+        if user_id:
+            target_person, is_active = get_person(user_id)
+        else:
+            target_person = get_person_by_quote(quote)
+
+        if not target_person:
+            return abort(
+                404,
+                message=self.ERRORS.get("person_does_not_exist").format(user_id=user_id),
+            )
+
+        if not content:
+            content = quote.content
+
+        if target_person.has_said(content):
+            return abort(
+                409,
+                message=self.ERRORS.get("already_exists").format(user_id=user_id),
+            )
+
+        kwargs = {
+            "person_id": target_person.id,
+            "content": content,
+        }
+
+        updated_quote = update_quote(quote, **kwargs)
+
+        return marshal(updated_quote, self.fields), 200
+
+
 api.add_resource(PersonListResource, "/people")
 api.add_resource(PersonResource, "/people/<string:user_id>")
 api.add_resource(PersonQuoteListResource, "/people/<string:user_id>/quotes")
 api.add_resource(PersonQuoteResource, "/people/<string:user_id>/quotes/<string:quote_id>")
 api.add_resource(QuoteListResource, "/quotes")
+api.add_resource(QuoteResource, "/quotes/<string:quote_id>")
