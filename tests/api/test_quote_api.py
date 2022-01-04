@@ -236,13 +236,60 @@ def test_edit_raises_404_if_person_does_not_exist(client, session, prepared_quot
 
 
 def test_edit_raises_404_if_quote_does_not_exist(client, session):
-    pass
+    quote_id = 1
+    expected_error = f"Can't find a quote with quote_id {quote_id} because it don't exist."
+
+    response = client.get(url_for("api.quoteresource", quote_id=quote_id))
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
 
 
-def test_edit_raises_404_if_a_quote_with_the_same_content_already_exists_for_that_person(
-    client, session
+def test_edit_raises_409_if_a_quote_with_the_same_content_already_exists_for_current_person(
+    client, session, prepared_user
 ):
-    pass
+    quote_to_edit = mixer.blend(Quote, person=prepared_user, content="Foo")
+    existing_quote = mixer.blend(Quote, person=prepared_user, content="Existing")
+    data = {
+        "content": existing_quote.content,
+    }
+    expected_error = (
+        "The Quote content provided can't be added because " "it already exists for this Person."
+    )
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=quote_to_edit.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 409
+    assert response_json.get("message") == expected_error
+
+
+def test_edit_raises_404_if_a_quote_with_the_same_content_already_exists_for_new_person(
+    client, session, prepared_user, prepared_quote
+):
+    # Existing quote
+    mixer.blend(Quote, person=prepared_user, content=prepared_quote.content)
+    data = {
+        "user_id": prepared_user.slack_user_id,
+    }
+    expected_error = (
+        "The Quote content provided can't be added because " "it already exists for this Person."
+    )
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=prepared_quote.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 409
+    assert response_json.get("message") == expected_error
 
 
 def test_get_quote_by_id_raises_404_if_quote_does_not_exist(client, session):
