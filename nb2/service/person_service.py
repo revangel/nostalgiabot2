@@ -20,7 +20,7 @@ def get_all_people():
 
 def get_person(user_id: str) -> Tuple[Person, bool]:
     """
-    Return Person with slack_user_id or ghost_user_id equal to user_id.
+    Return Person with slack_user_id, ghost_user_id or display_name equal to user_id.
 
     Args:
         user_id: Either a slack_user_id or a ghost_user_id
@@ -56,7 +56,7 @@ def get_person_by_slack_user_id(slack_user_id: str):
 
 def get_person_by_display_name(display_name: str):
     """
-    Return Person with ghost_user_id if it exists.
+    Return Person with display_name if it exists.
 
     Required Args:
         ghost_user_id: String representing the unique ghost name for a Person.
