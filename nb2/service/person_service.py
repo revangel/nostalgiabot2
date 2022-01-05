@@ -116,7 +116,7 @@ def create_person(data: Union[CreatePersonDTO, CreateGhostPersonDTO]):
         data: An AddPersonDTO instance.
 
     Raises:
-        IntegrityError if a Person with slack_user_id already exists.
+        IntegrityError if a Person with slack_user_id or ghost_user_id already exists.
 
     Returns:
         Newly created Person object on success.
