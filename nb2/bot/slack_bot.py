@@ -1,12 +1,12 @@
 import re
 from collections import namedtuple
-from typing import Tuple, Union
+from typing import Tuple
 
 from slack import WebClient
 from slack_sdk.errors import SlackApiError
 from sqlalchemy.orm.exc import MultipleResultsFound
 
-from nb2.models import Person, Quote
+from nb2.models import Person
 from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
 from nb2.service.exceptions import QuoteAlreadyExistsException
 from nb2.service.person_service import create_person, get_person, get_person_by_quote, update_person
@@ -241,7 +241,7 @@ class SlackBot:
 
         return self.Result(ok=True, message="Memory stored!")
 
-    def _random_quote(self, nostalgia_user_target: str = None) -> Tuple[Union[Person, str], Quote]:
+    def _random_quote(self, nostalgia_user_target: str = None) -> Tuple[str, str]:
         """
         Fetch a random quote from NB's memory of a Person with nostalgia_user_target, if they exist.
         If no user is specified, pick a random Quote and return that user and quote.
@@ -253,13 +253,15 @@ class SlackBot:
                                    a random Person.
 
         Returns:
-            A tuple. If the Person doesn't exist, the tuple will be a string with a string
-            identifier and None. Otherwise, the tuple will contain a Person and a Quote.
+            A tuple (str, str): If the Person doesn't exist, it returns
+                                (nostalgia_user_target, None).
+                                Otherwise, the tuple will contain the person's first name and the
+                                content of a random Quote of theirs.
         """
         if not nostalgia_user_target:
             quote = get_random_quote_from_any_person()
             person = get_person_by_quote(quote)
-            return person, quote
+            return person.first_name, quote.content
 
         person, is_active = get_person(nostalgia_user_target)
 
@@ -278,7 +280,7 @@ class SlackBot:
             return nostalgia_user_target, None
 
         # Success!
-        return person, quote[0]
+        return person.first_name, quote[0].content
 
     def quote(self, message: str) -> Result:
         """
@@ -309,7 +311,7 @@ class SlackBot:
         if quote is None:
             return self.Result(ok=True, message=f"I don't remember <@{person}>.")
 
-        return self.Result(ok=True, message=f'"{quote.content}" - {person.first_name}')
+        return self.Result(ok=True, message=f'"{quote}" - {person}')
 
     def remind(self, message: str, sender: str) -> Result:
         """
@@ -347,8 +349,7 @@ class SlackBot:
         slack_user_targets = [sender if target == "me" else target for target in slack_user_targets]
 
         message = (
-            f"{mention_users(slack_user_targets)} Do you remember this?\n\n"
-            f'"{quote.content}" - {person.first_name}'
+            f"{mention_users(slack_user_targets)} Do you remember this?\n\n" f'"{quote}" - {person}'
         )
         return self.Result(ok=True, message=message)
 
@@ -364,7 +365,7 @@ class SlackBot:
 
         person, quote = self._random_quote()
 
-        message = f'"{quote.content}" - {person.first_name}'
+        message = f'"{quote}" - {person}'
         return self.Result(ok=True, message=message)
 
     def converse(self, message: str) -> Result:

@@ -68,17 +68,3 @@ class AddQuoteDTO(BaseDTO):
 
     person: Person
     content: str
-
-
-@dataclass
-class AddGhostQuoteDTO(BaseDTO):
-    """
-    Data transfer object for adding a Quote to a ghost Person.
-
-    Required Fields:
-        ghost_user_id: String representing the ghost id of a Person.
-        content: string representing a Quote the Person has said.
-    """
-
-    ghost_user_id: str
-    content: str
