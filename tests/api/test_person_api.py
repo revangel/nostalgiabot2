@@ -13,8 +13,8 @@ def get_serialized_person(person, include_quotes=False):
         "slack_user_id": person.slack_user_id,
         "first_name": person.first_name,
         "last_name": person.last_name,
-        "ghost_user_id": None,
-        "display_name": None,
+        "ghost_user_id": person.ghost_user_id,
+        "display_name": person.display_name,
     }
 
     if include_quotes:
@@ -41,7 +41,9 @@ def test_get_all_people(num_people, client, session):
 
 @pytest.mark.parametrize("num_quotes", (0, 2))
 def test_get_all_people_with_quotes(num_quotes, client, session):
-    person1, person2 = mixer.cycle(2).blend(Person, slack_user_id=mixer.RANDOM)
+    person1, person2 = mixer.cycle(2).blend(
+        Person, slack_user_id=mixer.RANDOM, ghost_user_id=mixer.RANDOM
+    )
     mixer.cycle(num_quotes).blend(Quote, person=person1)
     mixer.cycle(num_quotes).blend(Quote, person=person2)
     expected_result = [

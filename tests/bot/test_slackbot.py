@@ -145,7 +145,12 @@ def test_remember_creates_new_person_if_they_dont_exist(client, session, mock_bo
         mock_bot,
         "fetch_user_info",
         return_value={
-            "profile": {"first_name": first_name, "last_name": last_name, "display_name": mock_name}
+            "profile": {
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": mock_name,
+            },
+            "name": first_name,
         },
     )
 
@@ -164,7 +169,10 @@ def test_remember_adds_quote_to_existing_person(client, session, mock_bot):
 
     session.add(
         Person(
-            slack_user_id=mock_slack_user_id, first_name=mock_first_name, last_name=mock_last_name
+            slack_user_id=mock_slack_user_id,
+            first_name=mock_first_name,
+            last_name=mock_last_name,
+            ghost_user_id=mock_first_name,
         )
     )
     session.commit()
@@ -191,7 +199,10 @@ def test_remember_responds_with_message_for_duplicate_quotes(client, session, mo
     mock_quote = mixer.faker.sentence()
 
     person = Person(
-        slack_user_id=mock_slack_user_id, first_name=mock_first_name, last_name=mock_last_name
+        slack_user_id=mock_slack_user_id,
+        first_name=mock_first_name,
+        last_name=mock_last_name,
+        ghost_user_id=mock_first_name,
     )
     session.add(person)
     session.commit()

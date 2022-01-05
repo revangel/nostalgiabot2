@@ -30,7 +30,8 @@ def test_create_person(client, session):
     slack_user_id = "Foo123"
     first_name = "Leta"
     last_name = "Moneypoli"
-    data = CreatePersonDTO(slack_user_id, first_name, last_name)
+    ghost_user_id = "lmoneypoli"
+    data = CreatePersonDTO(slack_user_id, first_name, last_name, ghost_user_id)
     create_person(data)
 
     assert len(Person.query.all()) == 1

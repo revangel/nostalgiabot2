@@ -31,7 +31,7 @@ class CreatePersonDTO(BaseDTO):
         first_name: string representing Person's first name.
     """
 
-    REQUIRED_FIELDS = ["slack_user_id", "first_name"]
+    REQUIRED_FIELDS = ["slack_user_id", "first_name", "ghost_user_id"]
 
     slack_user_id: str
     first_name: str
