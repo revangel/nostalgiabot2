@@ -3,6 +3,7 @@ from flask_restful import Api, Resource, abort, fields, marshal, reqparse
 from sqlalchemy.exc import IntegrityError
 
 from nb2.service.dtos import AddQuoteDTO, CreateGhostPersonDTO, CreatePersonDTO
+from nb2.service.exceptions import QuoteAlreadyExistsException
 from nb2.service.person_service import (
     create_person,
     get_all_people,
@@ -439,14 +440,14 @@ class QuoteListResource(QuoteResourceBase):
                 message=self.ERRORS.get("person_does_not_exist").format(user_id=user_id),
             )
 
-        if target_person.has_said(parsed_args.get("content")):
+        data = AddQuoteDTO(target_person, content)
+        try:
+            new_quote = add_quote_to_person(data)
+        except QuoteAlreadyExistsException:
             return abort(
                 409,
                 message=self.ERRORS.get("already_exists").format(user_id=user_id),
             )
-
-        data = AddQuoteDTO(target_person, content)
-        new_quote = add_quote_to_person(data)
 
         return marshal(new_quote, self.fields), 201
 
@@ -523,18 +524,18 @@ class QuoteResource(QuoteResourceBase):
         if not content:
             content = quote.content
 
-        if target_person.has_said(content):
+        kwargs = {
+            "person": target_person,
+            "content": content,
+        }
+
+        try:
+            updated_quote = update_quote(quote, **kwargs)
+        except QuoteAlreadyExistsException:
             return abort(
                 409,
                 message=self.ERRORS.get("already_exists").format(user_id=user_id),
             )
-
-        kwargs = {
-            "person_id": target_person.id,
-            "content": content,
-        }
-
-        updated_quote = update_quote(quote, **kwargs)
 
         return marshal(updated_quote, self.fields), 200
 

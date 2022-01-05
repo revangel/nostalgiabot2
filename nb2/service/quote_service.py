@@ -5,11 +5,7 @@ from sqlalchemy.sql.expression import func
 from nb2 import db
 from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO
-from nb2.service.exceptions import (
-    EmptyRequiredFieldException,
-    PersonDoesNotExistException,
-    QuoteAlreadyExistsException,
-)
+from nb2.service.exceptions import EmptyRequiredFieldException, QuoteAlreadyExistsException
 
 
 def get_quote_from_person(person: Person, quote_id: int):
@@ -156,13 +152,12 @@ def update_quote(quote: Quote, **kwargs):
         The same Quote object with a new content or person.
     """
     new_content = kwargs.get("content", quote.content)
-    target_person_id = kwargs.get("person_id", quote.person_id)
+    target_person = kwargs.get("person")
+
+    if not target_person:
+        target_person = Person.query.filter(Person.id == quote.person_id).one_or_none()
 
     # Confirm content isn't already a quote for the person
-    target_person = Person.query.filter(Person.id == target_person_id).one_or_none()
-    if not target_person:
-        raise PersonDoesNotExistException
-
     if target_person.has_said(new_content):
         raise QuoteAlreadyExistsException
 

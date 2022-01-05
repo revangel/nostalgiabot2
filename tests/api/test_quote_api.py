@@ -269,7 +269,7 @@ def test_edit_raises_409_if_a_quote_with_the_same_content_already_exists_for_cur
     assert response_json.get("message") == expected_error
 
 
-def test_edit_raises_404_if_a_quote_with_the_same_content_already_exists_for_new_person(
+def test_edit_raises_409_if_a_quote_with_the_same_content_already_exists_for_new_person(
     client, session, prepared_user, prepared_quote
 ):
     # Existing quote
