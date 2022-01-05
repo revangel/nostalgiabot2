@@ -21,12 +21,12 @@ def get_serialized_quote(quote):
 
 @pytest.fixture()
 def prepared_user(client, session):
-    yield mixer.blend(Person)
+    yield mixer.blend(Person, slack_user_id=mixer.RANDOM)
 
 
 @pytest.fixture()
 def prepared_quote(client, session, prepared_user):
-    yield mixer.blend(Quote)
+    yield mixer.blend(Quote, person=mixer.blend(Person, slack_user_id=mixer.RANDOM))
 
 
 def test_get_quote_from_person(client, session, prepared_quote):
@@ -35,7 +35,7 @@ def test_get_quote_from_person(client, session, prepared_quote):
     response = client.get(
         url_for(
             "api.personquoteresource",
-            slack_user_id=prepared_quote.person.slack_user_id,
+            user_id=prepared_quote.person.slack_user_id,
             quote_id=prepared_quote.id,
         )
     )
@@ -46,12 +46,10 @@ def test_get_quote_from_person(client, session, prepared_quote):
 
 
 def test_get_quote_raises_404_if_person_does_not_exist(client, session):
-    slack_user_id = "foo"
-    expected_error = f"Person with slack_user_id {slack_user_id} does not exist"
+    user_id = "foo"
+    expected_error = f"Person with user_id {user_id} does not exist"
 
-    response = client.get(
-        url_for("api.personquoteresource", slack_user_id=slack_user_id, quote_id=1)
-    )
+    response = client.get(url_for("api.personquoteresource", user_id=user_id, quote_id=1))
 
     response_json = response.json
     assert response.status_code == 404
@@ -62,13 +60,11 @@ def test_get_quote_raises_404_if_quote_does_not_exist(client, session, prepared_
     quote_id = 1
     expected_error = (
         f"Quote with id {quote_id} does not exist for person "
-        f"with slack_user_id {prepared_user.slack_user_id}"
+        f"with user_id {prepared_user.slack_user_id}"
     )
 
     response = client.get(
-        url_for(
-            "api.personquoteresource", slack_user_id=prepared_user.slack_user_id, quote_id=quote_id
-        )
+        url_for("api.personquoteresource", user_id=prepared_user.slack_user_id, quote_id=quote_id)
     )
 
     response_json = response.json
@@ -84,7 +80,7 @@ def test_get_all_quotes_from_person(num_quotes, client, session, prepared_user):
     response = client.get(
         url_for(
             "api.personquotelistresource",
-            slack_user_id=prepared_user.slack_user_id,
+            user_id=prepared_user.slack_user_id,
         )
     )
 
@@ -95,12 +91,10 @@ def test_get_all_quotes_from_person(num_quotes, client, session, prepared_user):
 
 
 def test_get_all_quotes_raises_404_if_person_does_not_exist(client, session):
-    slack_user_id = "foo"
-    expected_error = f"Person with slack_user_id {slack_user_id} does not exist"
+    user_id = "foo"
+    expected_error = f"Person with user_id {user_id} does not exist"
 
-    response = client.get(
-        url_for("api.personquotelistresource", slack_user_id=slack_user_id, quote_id=1)
-    )
+    response = client.get(url_for("api.personquotelistresource", user_id=user_id, quote_id=1))
 
     response_json = response.json
     assert response.status_code == 404
@@ -109,7 +103,7 @@ def test_get_all_quotes_raises_404_if_person_does_not_exist(client, session):
 
 def test_create_quote(client, session, prepared_user):
     data = {
-        "slack_user_id": prepared_user.slack_user_id,
+        "user_id": prepared_user.slack_user_id,
         "content": "Make Bikram productive",
     }
 
@@ -128,7 +122,7 @@ def test_create_quote(client, session, prepared_user):
 
 
 def test_cannot_create_duplicate_quote(client, session, prepared_user):
-    data = {"slack_user_id": prepared_user.slack_user_id, "content": "the more poking the better"}
+    data = {"user_id": prepared_user.slack_user_id, "content": "the more poking the better"}
 
     response = client.post(
         url_for("api.quotelistresource"), data=json.dumps(data), content_type="application/json"
@@ -146,3 +140,179 @@ def test_cannot_create_duplicate_quote(client, session, prepared_user):
         "The Quote content provided can't be added because it already exists for this Person."
     )
     assert response.json.get("message") == expected_error_msg
+
+
+def test_delete_quote(client, session, prepared_quote):
+    response = client.delete(
+        url_for(
+            "api.personquoteresource",
+            user_id=prepared_quote.person.slack_user_id,
+            quote_id=prepared_quote.id,
+        )
+    )
+
+    assert response.status_code == 204
+
+
+def test_delete_raises_404_if_quote_does_not_exist(client, prepared_user):
+    quote_id = 1
+    expected_error = (
+        f"Quote with id {quote_id} does not exist for person "
+        f"with user_id {prepared_user.slack_user_id}"
+    )
+
+    response = client.delete(
+        url_for(
+            "api.personquoteresource",
+            user_id=prepared_user.slack_user_id,
+            quote_id=quote_id,
+        )
+    )
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
+def test_delete_raises_404_if_person_does_not_exist(client, session):
+    user_id = "foo"
+    expected_error = f"Person with user_id {user_id} does not exist"
+
+    response = client.delete(url_for("api.personquoteresource", user_id=user_id, quote_id=1))
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
+def test_edit_quote_person(client, session, prepared_quote, prepared_user):
+    data = {
+        "user_id": prepared_user.slack_user_id,
+    }
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=prepared_quote.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert response_json.get("person_id") == prepared_user.id
+
+
+def test_edit_quote_content(client, session, prepared_quote):
+    data = {
+        "content": "edited field",
+    }
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=prepared_quote.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert response_json.get("content") == data.get("content")
+
+
+def test_edit_raises_404_if_person_does_not_exist(client, session, prepared_quote):
+    user_id = "foo"
+    data = {
+        "user_id": user_id,
+    }
+    expected_error = f"Can't add a quote to Person with user_id {user_id} because they don't exist."
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=prepared_quote.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
+def test_edit_raises_404_if_quote_does_not_exist(client, session):
+    quote_id = 1
+    expected_error = f"Can't find a quote with quote_id {quote_id} because it don't exist."
+
+    response = client.get(url_for("api.quoteresource", quote_id=quote_id))
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
+def test_edit_raises_409_if_a_quote_with_the_same_content_already_exists_for_current_person(
+    client, session, prepared_user
+):
+    quote_to_edit = mixer.blend(Quote, person=prepared_user, content="Foo")
+    existing_quote = mixer.blend(Quote, person=prepared_user, content="Existing")
+    data = {
+        "content": existing_quote.content,
+    }
+    expected_error = (
+        "The Quote content provided can't be added because " "it already exists for this Person."
+    )
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=quote_to_edit.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 409
+    assert response_json.get("message") == expected_error
+
+
+def test_edit_raises_409_if_a_quote_with_the_same_content_already_exists_for_new_person(
+    client, session, prepared_user, prepared_quote
+):
+    # Existing quote
+    mixer.blend(Quote, person=prepared_user, content=prepared_quote.content)
+    data = {
+        "user_id": prepared_user.slack_user_id,
+    }
+    expected_error = (
+        "The Quote content provided can't be added because " "it already exists for this Person."
+    )
+
+    response = client.patch(
+        url_for("api.quoteresource", quote_id=prepared_quote.id),
+        data=json.dumps(data),
+        content_type="application/json",
+    )
+
+    response_json = response.json
+    assert response.status_code == 409
+    assert response_json.get("message") == expected_error
+
+
+def test_get_quote_by_id_raises_404_if_quote_does_not_exist(client, session):
+    quote_id = 1
+    expected_error = "Can't find a quote with quote_id " f"{quote_id} because it don't exist."
+
+    response = client.get(url_for("api.quoteresource", quote_id=quote_id))
+
+    response_json = response.json
+    assert response.status_code == 404
+    assert response_json.get("message") == expected_error
+
+
+def test_get_quote_by_id(client, session, prepared_quote):
+    expected_data = get_serialized_quote(prepared_quote)
+
+    response = client.get(
+        url_for(
+            "api.quoteresource",
+            quote_id=prepared_quote.id,
+        )
+    )
+
+    response_json = response.json
+    assert response.status_code == 200
+    assert response_json == expected_data

@@ -3,44 +3,42 @@ from mixer.backend.flask import mixer
 
 from nb2.models import Person, Quote
 from nb2.service.dtos import AddQuoteDTO
-from nb2.service.exceptions import (
-    EmptyRequiredFieldException,
-    PersonDoesNotExistException,
-    QuoteAlreadyExistsException,
-)
+from nb2.service.exceptions import EmptyRequiredFieldException, QuoteAlreadyExistsException
 from nb2.service.quote_service import (
     add_quote_to_person,
+    delete_quote,
     get_all_quotes_from_person,
     get_quote_from_person,
     get_random_quotes_from_person,
+    update_quote,
 )
 
 
 def test_get_quote_from_person(client, session):
-    person = mixer.blend(Person)
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     expected_quote = mixer.blend(Quote, person=person)
 
-    actual_quote = get_quote_from_person(person.slack_user_id, expected_quote.id)
+    actual_quote = get_quote_from_person(person, expected_quote.id)
 
     assert actual_quote == expected_quote
 
 
 @pytest.mark.parametrize("num_quotes", [0, 1, 5])
 def test_get_random_quotes_from_person(client, session, num_quotes):
-    person = mixer.blend(Person)
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     expected_quotes = mixer.cycle().blend(Quote, person=person)
 
-    random_quotes = get_random_quotes_from_person(person.slack_user_id, num_quotes)
+    random_quotes = get_random_quotes_from_person(person, num_quotes)
 
     assert set(random_quotes).issubset(expected_quotes)
     assert len(random_quotes) == num_quotes
 
 
 def test_get_random_quotes_from_person_defaults_to_one(client, session):
-    person = mixer.blend(Person)
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     expected_quotes = mixer.cycle().blend(Quote, person=person)
 
-    random_quotes = get_random_quotes_from_person(person.slack_user_id)
+    random_quotes = get_random_quotes_from_person(person)
 
     assert set(random_quotes).issubset(expected_quotes)
     assert len(random_quotes) == 1
@@ -48,21 +46,21 @@ def test_get_random_quotes_from_person_defaults_to_one(client, session):
 
 @pytest.mark.parametrize("num_quotes", [0, 1, 5])
 def test_get_all_quotes_from_person(num_quotes, client, session):
-    person = mixer.blend(Person)
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
     expected_quotes = mixer.cycle(num_quotes).blend(Quote, person=person)
 
-    actual_quotes = get_all_quotes_from_person(person.slack_user_id)
+    actual_quotes = get_all_quotes_from_person(person)
 
     assert actual_quotes == expected_quotes
 
 
 def test_add_quote_to_person(client, session):
-    person = mixer.blend(Person)
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
 
     assert len(person.quotes) == 0
 
     content = "My face always looks like such a tomato."
-    data = AddQuoteDTO(person.slack_user_id, content)
+    data = AddQuoteDTO(person, content)
 
     add_quote_to_person(data)
 
@@ -70,26 +68,12 @@ def test_add_quote_to_person(client, session):
     assert person.has_said(content)
 
 
-def test_quote_service_raises_exception_if_person_does_not_exist(client, session):
-    data = AddQuoteDTO("nonexistent", "Should not be saved!")
-
-    with pytest.raises(PersonDoesNotExistException):
-        add_quote_to_person(data)
-
-
 def test_quote_service_raises_exception_if_quote_content_already_exists(client, session):
-    assert Person.query.count() == 0
-
-    # Note: mixer will also create the pre-requisite Person when making this Quote
-    quote = mixer.blend(Quote)
-
-    # Since there were no people before, the person created should have id == 1
-    person = Person.query.get(1)
-
-    assert person.has_said(quote.content)
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
+    quote = mixer.blend(Quote, person=person)
 
     with pytest.raises(QuoteAlreadyExistsException):
-        data = AddQuoteDTO(person.slack_user_id, quote.content)
+        data = AddQuoteDTO(person, quote.content)
         add_quote_to_person(data)
 
 
@@ -98,3 +82,52 @@ def test_quote_service_raises_exception_if_required_fields_are_empty(client, ses
 
     with pytest.raises(EmptyRequiredFieldException):
         add_quote_to_person(data)
+
+
+def test_delete_quote(client, session):
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
+    quote = mixer.blend(Quote, person=person)
+
+    assert len(Quote.query.all()) == 1
+
+    delete_quote(quote)
+
+    assert len(Quote.query.all()) == 0
+
+
+def test_edit_quote_content(client, session):
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
+    expected_quote = mixer.blend(Quote, person=person)
+    new_content = "New content"
+
+    kwargs = {"content": new_content}
+    actual_quote = update_quote(expected_quote, **kwargs)
+
+    assert actual_quote.content == new_content
+
+
+def test_edit_quote_person(client, session):
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
+    new_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
+    expected_quote = mixer.blend(Quote, person=person, content="foo")
+
+    kwargs = {"person": new_person}
+    actual_quote = update_quote(expected_quote, **kwargs)
+
+    assert actual_quote.person_id == new_person.id
+    assert actual_quote.content == "foo"
+
+
+def test_quote_service_raises_exception_if_editing_a_quote_to_content_which_already_exists(
+    client, session
+):
+    person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
+    existing_quote_content = "foo"
+    # Existing quote
+    mixer.blend(Quote, person=person, content=existing_quote_content)
+    expected_quote = mixer.blend(Quote, person=person, content="bar")
+
+    kwargs = {"content": existing_quote_content}
+
+    with pytest.raises(QuoteAlreadyExistsException):
+        update_quote(expected_quote, **kwargs)
