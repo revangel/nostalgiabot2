@@ -1,15 +1,16 @@
 """Initial migration
 
-Revision ID: c18a4a953b17
+Revision ID: 649afdda18eb
 Revises: 
-Create Date: 2021-04-21 16:02:07.862188
+Create Date: 2022-01-05 16:32:35.361244
 
 """
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
+
 
 # revision identifiers, used by Alembic.
-revision = "c18a4a953b17"
+revision = "649afdda18eb"
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -21,7 +22,7 @@ def upgrade():
         "person",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("slack_user_id", sa.String(length=16), nullable=True),
-        sa.Column("ghost_user_id", sa.String(length=16), nullable=True),
+        sa.Column("ghost_user_id", sa.String(length=16), nullable=False),
         sa.Column("first_name", sa.String(length=32), nullable=False),
         sa.Column("last_name", sa.String(length=32), nullable=True),
         sa.Column("display_name", sa.String(length=80), nullable=True),
@@ -29,9 +30,9 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
     with op.batch_alter_table("person", schema=None) as batch_op:
+        batch_op.create_index(batch_op.f("ix_person_display_name"), ["display_name"], unique=False)
         batch_op.create_index(batch_op.f("ix_person_ghost_user_id"), ["ghost_user_id"], unique=True)
         batch_op.create_index(batch_op.f("ix_person_slack_user_id"), ["slack_user_id"], unique=True)
-        batch_op.create_index(batch_op.f("ix_person_display_name"), ["display_name"], unique=False)
 
     op.create_table(
         "quote",

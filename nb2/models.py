@@ -34,6 +34,7 @@ class Person(db.Model):
         db.String(16),
         index=True,
         unique=True,
+        nullable=False,
     )
     first_name = db.Column(db.String(32), nullable=False)
     last_name = db.Column(db.String(32))
