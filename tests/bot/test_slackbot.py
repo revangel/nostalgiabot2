@@ -300,7 +300,7 @@ def test_remind_does_not_remember_person_that_doesnt_have_quotes(mocker, client,
 
 
 def test_random_responds_when_no_users_in_system(client, session, mock_bot):
-    expected_message = "No memories to remember"
+    expected_message = "No memories to remember ( •́ ∧ •̀ )"
 
     result = mock_bot.random()
 
@@ -309,7 +309,7 @@ def test_random_responds_when_no_users_in_system(client, session, mock_bot):
 
 def test_random_responds_when_no_quotes_in_system(client, session, mock_bot):
     mock_person = mixer.blend(Person, slack_user_id=mixer.RANDOM)
-    expected_message = "No memories to remember"
+    expected_message = "No memories to remember ( •́ ∧ •̀ )"
 
     session.add(mock_person)
     session.commit()
