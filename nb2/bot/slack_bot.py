@@ -2,7 +2,7 @@ import re
 from collections import namedtuple
 from typing import Tuple
 
-from slack import WebClient
+from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from sqlalchemy.orm.exc import MultipleResultsFound
 
@@ -361,7 +361,7 @@ class SlackBot:
             A Result namedtuple.
         """
         if not has_quotes():
-            return self.Result(ok=True, message="No memories to remember")
+            return self.Result(ok=True, message="No memories to remember ( •́ ∧ •̀ )")
 
         person, quote = self._random_quote()
 
