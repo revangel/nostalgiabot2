@@ -4,7 +4,7 @@ import pathlib
 
 import requests
 
-BOT_URL = "127.0.0.1:5000"
+BOT_URL = "127.0.0.1:8000"
 
 
 def get_url(url):
