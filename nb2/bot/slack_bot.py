@@ -107,7 +107,8 @@ class SlackBot:
         """
         sender = payload.get("event").get("user")
         command = payload.get("event").get("text")
-        command = self._remove_bot_user_id_reference(command, all_occurrences=True)
+        # People like to quote bots even nb
+        command = self._remove_bot_user_id_reference(command, all_occurrences=False)
         command = command.strip()
 
         if self.is_hello(command):
@@ -215,7 +216,10 @@ class SlackBot:
                 user_profile = user_info["profile"]
                 create_person_dto = CreatePersonDTO(
                     slack_user_id=target_user_id,
-                    first_name=user_profile.get("first_name"),
+                    # NOTE: first_name is required and was throwing errors for slack bots
+                    first_name=user_profile.get("first_name")
+                    or user_profile.get("real_name")
+                    or user_info.get("name"),
                     last_name=user_profile.get("last_name"),
                     display_name=user_profile.get("display_name") or user_profile.get("real_name"),
                     ghost_user_id=user_info.get("name"),
