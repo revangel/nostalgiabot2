@@ -5,7 +5,7 @@ import pathlib
 
 import requests
 
-NB2_PORT = os.environ["NB2_PORT"] or "8000"
+NB2_PORT = os.environ.get("NB2_PORT", "8000")
 
 
 def get_url(url):
