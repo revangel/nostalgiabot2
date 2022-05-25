@@ -1,14 +1,15 @@
 import argparse
 import csv
+import os
 import pathlib
 
 import requests
 
-BOT_URL = "127.0.0.1:8000"
+NB2_PORT = os.environ["NB2_PORT"] or "8000"
 
 
 def get_url(url):
-    return f"{'http' if parsed_args.use_http else 'https'}://{BOT_URL}{url}"
+    return f"{'http' if parsed_args.use_http else 'https'}://127.0.0.1:{NB2_PORT}{url}"
 
 
 def post(url, data):
