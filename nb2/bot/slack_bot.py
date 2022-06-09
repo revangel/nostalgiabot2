@@ -576,7 +576,7 @@ class SlackBot:
         response = self.fetch_user_info(person.slack_user_id)
         return update_person(
             person,
-            first_name=response["profile"]["first_name"],
-            last_name=response["profile"]["last_name"],
-            display_name=response["profile"]["display_name"],
+            first_name=response["profile"].get("first_name"),
+            last_name=response["profile"].get("last_name"),
+            display_name=response["profile"].get("display_name"),
         )
