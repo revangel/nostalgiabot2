@@ -157,11 +157,11 @@ def update_person(person: Person, **kwargs):
     Returns:
         The same Person object with a new display_name.
     """
-    person.first_name = kwargs.get("first_name", person.display_name)
-    person.last_name = kwargs.get("last_name", person.display_name)
-    person.display_name = kwargs.get("display_name", person.display_name)
-    person.slack_user_id = kwargs.get("slack_user_id", person.slack_user_id)
-    person.ghost_user_id = kwargs.get("ghost_user_id", person.ghost_user_id)
+    person.first_name = kwargs.get("first_name") or person.first_name
+    person.last_name = kwargs.get("last_name") or person.last_name
+    person.display_name = kwargs.get("display_name") or person.display_name
+    person.slack_user_id = kwargs.get("slack_user_id") or person.slack_user_id
+    person.ghost_user_id = kwargs.get("ghost_user_id") or person.ghost_user_id
 
     db.session.commit()
     db.session.refresh(person)
