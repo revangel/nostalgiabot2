@@ -151,7 +151,7 @@ def update_quote(quote: Quote, **kwargs):
     Returns:
         The same Quote object with a new content or person.
     """
-    new_content = kwargs.get("content", quote.content)
+    new_content = kwargs.get("content") or quote.content
     target_person = kwargs.get("person")
 
     if not target_person:
